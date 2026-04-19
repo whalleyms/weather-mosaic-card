@@ -81,6 +81,30 @@ class WeatherMosaicCard extends HTMLElement {
             },
           },
         },
+        {
+          name: 'color_scale',
+          selector: {
+            select: {
+              options: [
+                { label: 'Mosaic (default)', value: 'mosaic' },
+                { label: 'Blue → Red', value: 'blue_red' },
+                { label: 'Turbo', value: 'turbo' },
+              ],
+            },
+          },
+        },
+        {
+          name: 'hours',
+          selector: {
+            select: {
+              options: [
+                { label: 'Hidden', value: '' },
+                { label: 'Above chart', value: 'above' },
+                { label: 'Below chart', value: 'below' },
+              ],
+            },
+          },
+        },
       ],
     };
   }
@@ -157,6 +181,19 @@ class WeatherMosaicCard extends HTMLElement {
           white-space: nowrap;
           vertical-align: middle;
         }
+        .hour-label {
+          width: var(--cell-w, 17px);
+          min-width: var(--cell-w, 17px);
+          max-width: var(--cell-w, 17px);
+          font-size: calc(var(--cell-fs, 20px) * 0.85);
+          color: var(--primary-text-color, #ffffff);
+          opacity: 0.6;
+          text-align: center;
+          vertical-align: middle;
+          padding: 2px 0;
+          white-space: nowrap;
+          overflow: visible;
+        }
         .cell {
           width: var(--cell-w, 17px);
           min-width: var(--cell-w, 17px);
@@ -166,7 +203,6 @@ class WeatherMosaicCard extends HTMLElement {
           vertical-align: middle;
           font-size: var(--cell-fs, 20px);
           font-weight: 550;
-          color: rgba(0,0,0,0.72);
           padding: 0;
           margin: 0;
           position: relative;
@@ -203,17 +239,42 @@ class WeatherMosaicCard extends HTMLElement {
   // Color scale: temperature (°F) → RGB
   // -------------------------------------------------------------------------
   _tempToColor(f) {
-    const stops = [
-      [10,  [200, 230, 255]],
-      [30,  [160, 200, 255]],
-      [40,  [ 91, 163, 255]],
-      [55,  [ 61, 217, 160]],
-      [65,  [163, 224,  58]],
-      [75,  [255, 255,  85]],
-      [85,  [255, 176,  58]],
-      [95,  [255,  92,  58]],
-      [105, [178,  40,  40]],
-    ];
+    const scales = {
+      mosaic: [
+        [10,  [200, 230, 255]],
+        [30,  [160, 200, 255]],
+        [40,  [ 91, 163, 255]],
+        [55,  [ 61, 217, 160]],
+        [65,  [163, 224,  58]],
+        [75,  [255, 255,  85]],
+        [85,  [255, 176,  58]],
+        [95,  [255,  92,  58]],
+        [105, [178,  40,  40]],
+      ],
+      blue_red: [
+        [10,  [ 33, 102, 172]],
+        [30,  [ 67, 147, 195]],
+        [45,  [146, 197, 222]],
+        [55,  [209, 229, 240]],
+        [65,  [253, 219, 199]],
+        [75,  [244, 165, 130]],
+        [85,  [214,  96,  77]],
+        [95,  [178,  24,  43]],
+        [105, [103,   0,  31]],
+      ],
+      turbo: [
+        [10,  [ 35,  23, 123]],
+        [25,  [ 18, 118, 220]],
+        [40,  [ 20, 200, 195]],
+        [55,  [ 57, 231, 107]],
+        [65,  [146, 241,  57]],
+        [75,  [239, 211,  33]],
+        [85,  [253, 132,  26]],
+        [95,  [210,  50,  10]],
+        [105, [122,   4,   3]],
+      ],
+    };
+    const stops = scales[this._config.color_scale] ?? scales.mosaic;
     let lo = stops[0], hi = stops[stops.length - 1];
     for (let i = 0; i < stops.length - 1; i++) {
       if (f >= stops[i][0] && f <= stops[i + 1][0]) {
@@ -222,7 +283,14 @@ class WeatherMosaicCard extends HTMLElement {
     }
     const t = Math.max(0, Math.min(1, (f - lo[0]) / (hi[0] - lo[0])));
     const lerp = (a, b) => Math.round(a + (b - a) * t);
-    return `rgb(${lerp(lo[1][0],hi[1][0])},${lerp(lo[1][1],hi[1][1])},${lerp(lo[1][2],hi[1][2])})`;
+    const r = lerp(lo[1][0], hi[1][0]);
+    const g = lerp(lo[1][1], hi[1][1]);
+    const b = lerp(lo[1][2], hi[1][2]);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return {
+      bg: `rgb(${r},${g},${b})`,
+      fg: luminance > 0.5 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -286,9 +354,23 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
+    const _hoursRow = () => {
+      const tr = document.createElement('tr');
+      tr.appendChild(document.createElement('td'));
+      for (let h = 0; h < 24; h++) {
+        const td = document.createElement('td');
+        td.className = 'hour-label';
+        if ([3, 6, 9, 12, 15, 18, 21].includes(h)) td.textContent = h;
+        tr.appendChild(td);
+      }
+      return tr;
+    };
+
     // Build table
     const table = this.shadowRoot.getElementById('grid');
     table.innerHTML = '';
+
+    if (this._config.hours === 'above') table.appendChild(_hoursRow());
 
     for (let d = 0; d < DAYS; d++) {
       const tr = document.createElement('tr');
@@ -304,7 +386,8 @@ class WeatherMosaicCard extends HTMLElement {
         const e = grid[d]?.[h];
 
         if (e) {
-          td.style.background = this._tempToColor(e.temp);
+          const { bg, fg } = this._tempToColor(e.temp);
+          td.style.background = bg;
           let label = '';
           if (e.isHigh || e.isLow) {
             const displayTemp = this._config.temperature_unit === 'C'
@@ -326,6 +409,7 @@ class WeatherMosaicCard extends HTMLElement {
               white-space: nowrap;
               pointer-events: none;
               z-index: 1;
+              color: ${fg};
             `;
             td.appendChild(span);
           }
@@ -338,6 +422,8 @@ class WeatherMosaicCard extends HTMLElement {
 
       table.appendChild(tr);
     }
+
+    if (this._config.hours === 'below') table.appendChild(_hoursRow());
   }
 }
 
