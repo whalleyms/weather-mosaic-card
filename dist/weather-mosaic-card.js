@@ -53,6 +53,7 @@ class WeatherMosaicCard extends HTMLElement {
 
   disconnectedCallback() {
     this._unsubscribeForecast();
+    if (this._ro) { this._ro.disconnect(); this._ro = null; }
   }
 
   getCardSize() { return 4; }
@@ -149,7 +150,7 @@ class WeatherMosaicCard extends HTMLElement {
         .grid-wrap { overflow: hidden; }
         table { border-collapse: collapse; border-spacing: 0; width: 100%; }
         .day-label {
-          font-size: 17px;
+          font-size: var(--label-fs, 17px);
           font-weight: 500;
           color: var(--primary-text-color, #ffffff);
           padding-right: 6px;
@@ -157,13 +158,13 @@ class WeatherMosaicCard extends HTMLElement {
           vertical-align: middle;
         }
         .cell {
-          width: 17px;
-          min-width: 17px;
-          max-width: 17px;
-          height: 22px;
+          width: var(--cell-w, 17px);
+          min-width: var(--cell-w, 17px);
+          max-width: var(--cell-w, 17px);
+          height: var(--cell-h, 22px);
           text-align: center;
           vertical-align: middle;
-          font-size: 20px;
+          font-size: var(--cell-fs, 20px);
           font-weight: 550;
           color: rgba(0,0,0,0.72);
           padding: 0;
@@ -174,6 +175,23 @@ class WeatherMosaicCard extends HTMLElement {
       <ha-card>
         <div class="grid-wrap"><table id="grid"></table></div>
       </ha-card>`;
+
+    this._ro = new ResizeObserver(() => this._onResize());
+    this._ro.observe(this);
+  }
+
+  _onResize() {
+    const w = this.offsetWidth;
+    if (!w) return;
+    const cellW  = Math.max(8,  Math.floor((w - 28 - 38) / 24));
+    const cellH  = Math.max(12, Math.floor(cellW * 1.2));
+    const cellFs = Math.max(7,  Math.floor(cellW * 0.85));
+    const labelFs = Math.max(10, Math.min(17, cellH));
+    const host = this.shadowRoot.host;
+    host.style.setProperty('--cell-w',  `${cellW}px`);
+    host.style.setProperty('--cell-h',  `${cellH}px`);
+    host.style.setProperty('--cell-fs', `${cellFs}px`);
+    host.style.setProperty('--label-fs', `${labelFs}px`);
   }
 
   _showError(msg) {
