@@ -57,6 +57,33 @@ class WeatherMosaicCard extends HTMLElement {
 
   getCardSize() { return 4; }
 
+  getGridOptions() {
+    return { columns: 12, rows: 4, min_columns: 6, min_rows: 2 };
+  }
+
+  static getStubConfig() {
+    return { entity: 'weather.home', temperature_unit: 'F' };
+  }
+
+  static getConfigForm() {
+    return {
+      schema: [
+        { name: 'entity', required: true, selector: { entity: { domain: 'weather' } } },
+        {
+          name: 'temperature_unit',
+          selector: {
+            select: {
+              options: [
+                { label: 'Fahrenheit (°F)', value: 'F' },
+                { label: 'Celsius (°C)', value: 'C' },
+              ],
+            },
+          },
+        },
+      ],
+    };
+  }
+
   // -------------------------------------------------------------------------
   // Forecast subscription (HA 2023.9+) with legacy attribute fallback
   // -------------------------------------------------------------------------
@@ -300,8 +327,9 @@ customElements.define('weather-mosaic-card', WeatherMosaicCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: 'weather-mosaic-card',
+  type: 'custom:weather-mosaic-card',
   name: 'WX Chart Card',
   description: 'Hourly temperature color-mosaic grid for 7 days.',
   preview: false,
+  documentationURL: 'https://github.com/whalleyms/weather-mosaic-card',
 });
