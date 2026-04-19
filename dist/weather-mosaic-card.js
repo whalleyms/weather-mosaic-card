@@ -185,7 +185,7 @@ class WeatherMosaicCard extends HTMLElement {
     if (!w) return;
     const cellW  = Math.max(8,  Math.floor((w - 28 - 38) / 24));
     const cellH  = Math.max(12, Math.floor(cellW * 1.2));
-    const cellFs = Math.max(12, Math.floor(cellW * 1.31));
+    const cellFs = Math.max(8,  Math.floor(cellW * 0.92));
     const labelFs = Math.max(10, Math.min(17, cellH));
     const host = this.shadowRoot.host;
     host.style.setProperty('--cell-w',  `${cellW}px`);
