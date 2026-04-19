@@ -111,8 +111,8 @@ class WeatherMosaicCard extends HTMLElement {
         :host { display: block; }
         ha-card {
           padding: 0px 14px 14px 14px;
-          background: #000000;
-          color: #ffffff;
+          background: var(--ha-card-background, var(--card-background-color, #1c1c1c));
+          color: var(--primary-text-color, #ffffff);
         }
         .error {
           color: var(--error-color, #db4437);
@@ -124,7 +124,7 @@ class WeatherMosaicCard extends HTMLElement {
         .day-label {
           font-size: 17px;
           font-weight: 500;
-          color: rgba(255,255,255,1.0);
+          color: var(--primary-text-color, #ffffff);
           padding-right: 6px;
           white-space: nowrap;
           vertical-align: middle;
@@ -285,7 +285,7 @@ class WeatherMosaicCard extends HTMLElement {
             td.appendChild(span);
           }
         } else {
-          td.style.background = '#000000';
+          td.style.background = 'transparent';
         }
 
         tr.appendChild(td);
