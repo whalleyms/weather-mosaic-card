@@ -1,19 +1,108 @@
-// weather-mosaic-card v0.1.0
+/**
+ * weather-mosaic-card
+ * Color-mosaic hourly weather grid for Home Assistant
+ *
+ * Installation:
+ *   1. Copy to /config/www/weather-mosaic-card.js
+ *   2. Add Lovelace resource:
+ *        url: /local/weather-mosaic-card.js
+ *        type: module
+ *   3. Add card:
+ *        type: custom:weather-mosaic-card
+ *        entity: weather.home        # must provide hourly forecast
+ *
+ * Requires an integration that provides hourly forecast data
+ * (PirateWeather, Open-Meteo, Met.no, etc.)
+ */
 
-class WxChartCard extends HTMLElement {
+class WeatherMosaicCard extends HTMLElement {
+
+  // -------------------------------------------------------------------------
+  // HA lifecycle
+  // -------------------------------------------------------------------------
   set hass(hass) {
-    if (!this.content) this._build();
-    const entity = this._config.entity || 'weather.pirateweather';
-    const state = hass.states[entity];
-    if (!state) return;
-    const forecast = state.attributes.forecast || [];
-    this._render(forecast);
+    const firstLoad = !this._hass;
+    this._hass = hass;
+
+    if (!this.shadowRoot) this._build();
+
+    // Subscribe to forecast on first hass assignment
+    if (firstLoad && this._config) {
+      this._subscribeForecast();
+    }
   }
 
   setConfig(config) {
-    this._config = config;
+    this._config = {
+      entity: 'weather.pirateweather',
+      ...config,
+    };
+
+    // If we already have hass (config set after hass), subscribe now
+    if (this._hass && !this._unsubForecast) {
+      this._subscribeForecast();
+    }
   }
 
+  connectedCallback() {
+    if (this._hass && this._config && !this._unsubForecast) {
+      this._subscribeForecast();
+    }
+  }
+
+  disconnectedCallback() {
+    this._unsubscribeForecast();
+  }
+
+  getCardSize() { return 4; }
+
+  // -------------------------------------------------------------------------
+  // Forecast subscription (HA 2023.9+) with legacy attribute fallback
+  // -------------------------------------------------------------------------
+  async _subscribeForecast() {
+    this._unsubscribeForecast();
+
+    try {
+      this._unsubForecast = await this._hass.connection.subscribeMessage(
+        (event) => this._render(event.forecast ?? []),
+        {
+          type: 'weather/subscribe_forecast',
+          forecast_type: 'hourly',
+          entity_id: this._config.entity,
+        }
+      );
+    } catch (err) {
+      console.warn(
+        'weather-mosaic-card: WebSocket forecast subscription failed, ' +
+        'falling back to legacy attribute.', err
+      );
+      this._fallbackToAttribute();
+    }
+  }
+
+  _unsubscribeForecast() {
+    if (this._unsubForecast) {
+      this._unsubForecast();
+      this._unsubForecast = null;
+    }
+  }
+
+  _fallbackToAttribute() {
+    const state = this._hass?.states[this._config.entity];
+    const forecast = state?.attributes?.forecast;
+    if (forecast && forecast.length > 0) {
+      this._render(forecast);
+    } else {
+      this._showError(
+        `No forecast data for "${this._config.entity}". ` +
+        `Check the entity exists and provides hourly forecasts.`
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Build shadow DOM (called once)
+  // -------------------------------------------------------------------------
   _build() {
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.innerHTML = `
@@ -24,17 +113,13 @@ class WxChartCard extends HTMLElement {
           background: #000000;
           color: #ffffff;
         }
-        .title { font-size: 14px; font-weight: 500; color: var(--secondary-text-color); margin-bottom: 10px; }
+        .error {
+          color: var(--error-color, #db4437);
+          font-size: 0.85em;
+          padding: 12px 0;
+        }
         .grid-wrap { overflow: hidden; }
         table { border-collapse: collapse; border-spacing: 0; width: 100%; }
-        .hour-label {
-          font-size: 17px;
-          color: rgba(255,255,255,1.0);
-          text-align: center;
-          padding: 0 0 4px 0;
-          white-space: nowrap;
-          font-weight: 400;
-        }
         .day-label {
           font-size: 17px;
           font-weight: 500;
@@ -61,9 +146,16 @@ class WxChartCard extends HTMLElement {
       <ha-card>
         <div class="grid-wrap"><table id="grid"></table></div>
       </ha-card>`;
-    this.content = true;
   }
 
+  _showError(msg) {
+    const table = this.shadowRoot?.getElementById('grid');
+    if (table) table.innerHTML = `<tr><td class="error">${msg}</td></tr>`;
+  }
+
+  // -------------------------------------------------------------------------
+  // Color scale: temperature (°F) → RGB
+  // -------------------------------------------------------------------------
   _tempToColor(f) {
     const stops = [
       [10,  [200, 230, 255]],
@@ -74,7 +166,7 @@ class WxChartCard extends HTMLElement {
       [75,  [255, 255,  85]],
       [85,  [255, 176,  58]],
       [95,  [255,  92,  58]],
-      [105, [178,  40,  40]]
+      [105, [178,  40,  40]],
     ];
     let lo = stops[0], hi = stops[stops.length - 1];
     for (let i = 0; i < stops.length - 1; i++) {
@@ -84,10 +176,15 @@ class WxChartCard extends HTMLElement {
     }
     const t = Math.max(0, Math.min(1, (f - lo[0]) / (hi[0] - lo[0])));
     const lerp = (a, b) => Math.round(a + (b - a) * t);
-    return `rgb(${lerp(lo[1][0], hi[1][0])},${lerp(lo[1][1], hi[1][1])},${lerp(lo[1][2], hi[1][2])})`;
+    return `rgb(${lerp(lo[1][0],hi[1][0])},${lerp(lo[1][1],hi[1][1])},${lerp(lo[1][2],hi[1][2])})`;
   }
 
+  // -------------------------------------------------------------------------
+  // Render grid
+  // -------------------------------------------------------------------------
   _render(forecast) {
+    if (!this.shadowRoot) this._build();
+
     const DAYS = 7;
     const HOURS = Array.from({ length: 24 }, (_, i) => i);
     const dayMap = {}, dayLabels = [];
@@ -103,15 +200,15 @@ class WxChartCard extends HTMLElement {
       const di = dayMap[key];
       if (di === undefined) return;
       if (!grid[di]) grid[di] = {};
-      const hour = dt.getHours();
-      grid[di][hour] = {
+      grid[di][dt.getHours()] = {
         temp: item.temperature,
-        precip: item.precipitation_probability || 0
+        precip: item.precipitation_probability || 0,
       };
     });
 
     const nowHour = new Date().getHours();
 
+    // Mark daily high/low per cell
     for (let d = 0; d < DAYS; d++) {
       const day = grid[d];
       if (!day) continue;
@@ -120,6 +217,7 @@ class WxChartCard extends HTMLElement {
       const mx = Math.max(...valid.map(e => e.temp));
       const mn = Math.min(...valid.map(e => e.temp));
       let highMarked = false, lowMarked = false;
+
       HOURS.forEach(h => {
         const e = day[h];
         if (!e) return;
@@ -134,15 +232,21 @@ class WxChartCard extends HTMLElement {
           lowMarked = { entry: e, hour: h };
         }
       });
-      if (d === 0 && highMarked && highMarked.hour < nowHour) highMarked.entry.isHigh = false;
-      if (d === 0 && lowMarked && lowMarked.hour < nowHour) lowMarked.entry.isLow = false;
+
+      // Don't label past hours on today
+      if (d === 0) {
+        if (highMarked && highMarked.hour < nowHour) highMarked.entry.isHigh = false;
+        if (lowMarked && lowMarked.hour < nowHour) lowMarked.entry.isLow = false;
+      }
     }
 
+    // Build table
     const table = this.shadowRoot.getElementById('grid');
     table.innerHTML = '';
 
     for (let d = 0; d < DAYS; d++) {
       const tr = document.createElement('tr');
+
       const dl = document.createElement('td');
       dl.className = 'day-label';
       dl.textContent = dayLabels[d] || '';
@@ -151,7 +255,8 @@ class WxChartCard extends HTMLElement {
       HOURS.forEach(h => {
         const td = document.createElement('td');
         td.className = 'cell';
-        const e = grid[d] && grid[d][h];
+        const e = grid[d]?.[h];
+
         if (e) {
           td.style.background = this._tempToColor(e.temp);
           let label = '';
@@ -167,8 +272,7 @@ class WxChartCard extends HTMLElement {
             span.textContent = label;
             span.style.cssText = `
               position: absolute;
-              left: 50%;
-              top: 50%;
+              left: 50%; top: 50%;
               transform: translate(-50%, -50%);
               white-space: nowrap;
               pointer-events: none;
@@ -179,13 +283,21 @@ class WxChartCard extends HTMLElement {
         } else {
           td.style.background = '#000000';
         }
+
         tr.appendChild(td);
       });
+
       table.appendChild(tr);
     }
   }
-
-  getCardSize() { return 4; }
 }
 
-customElements.define('weather-mosaic-card', WxChartCard);
+customElements.define('weather-mosaic-card', WeatherMosaicCard);
+
+window.customCards = window.customCards || [];
+window.customCards.push({
+  type: 'weather-mosaic-card',
+  name: 'WX Chart Card',
+  description: 'Hourly temperature color-mosaic grid for 7 days.',
+  preview: false,
+});
