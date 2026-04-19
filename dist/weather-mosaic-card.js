@@ -35,6 +35,7 @@ class WeatherMosaicCard extends HTMLElement {
   setConfig(config) {
     this._config = {
       entity: 'weather.pirateweather',
+      temperature_unit: 'F',
       ...config,
     };
 
@@ -261,7 +262,10 @@ class WeatherMosaicCard extends HTMLElement {
           td.style.background = this._tempToColor(e.temp);
           let label = '';
           if (e.isHigh || e.isLow) {
-            label = Math.round(e.temp);
+            const displayTemp = this._config.temperature_unit === 'C'
+              ? Math.round((e.temp - 32) * 5 / 9)
+              : Math.round(e.temp);
+            label = displayTemp;
           } else if (e.precip >= 50) {
             label = '/';
           } else if (e.precip >= 10) {
