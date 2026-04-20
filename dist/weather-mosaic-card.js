@@ -24,7 +24,7 @@ class WeatherMosaicCard extends HTMLElement {
     const firstLoad = !this._hass;
     this._hass = hass;
 
-    if (!this.shadowRoot) this._build();
+    if (!this.shadowRoot) { this._build(); this._updateTitle(); }
 
     // Subscribe to forecast on first hass assignment
     if (firstLoad && this._config) {
@@ -39,10 +39,20 @@ class WeatherMosaicCard extends HTMLElement {
       ...config,
     };
 
+    this._updateTitle();
+
     // If we already have hass (config set after hass), subscribe now
     if (this._hass && !this._unsubForecast) {
       this._subscribeForecast();
     }
+  }
+
+  _updateTitle() {
+    const card = this.shadowRoot?.querySelector('ha-card');
+    if (!card) return;
+    const title = this._config?.title
+      ?? (this._config?.entity || '').replace(/^weather\./, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    title ? card.setAttribute('header', title) : card.removeAttribute('header');
   }
 
   connectedCallback() {
@@ -66,47 +76,8 @@ class WeatherMosaicCard extends HTMLElement {
     return { entity: 'weather.home', temperature_unit: 'F' };
   }
 
-  static getConfigForm() {
-    return {
-      schema: [
-        { name: 'entity', required: true, selector: { entity: { domain: 'weather' } } },
-        {
-          name: 'temperature_unit',
-          selector: {
-            select: {
-              options: [
-                { label: 'Fahrenheit (°F)', value: 'F' },
-                { label: 'Celsius (°C)', value: 'C' },
-              ],
-            },
-          },
-        },
-        {
-          name: 'color_scale',
-          selector: {
-            select: {
-              options: [
-                { label: 'Mosaic (default)', value: 'mosaic' },
-                { label: 'Blue → Red', value: 'blue_red' },
-                { label: 'Turbo', value: 'turbo' },
-              ],
-            },
-          },
-        },
-        {
-          name: 'hours',
-          selector: {
-            select: {
-              options: [
-                { label: 'Hidden', value: '' },
-                { label: 'Above chart', value: 'above' },
-                { label: 'Below chart', value: 'below' },
-              ],
-            },
-          },
-        },
-      ],
-    };
+  static getConfigElement() {
+    return document.createElement('weather-mosaic-card-editor');
   }
 
   // -------------------------------------------------------------------------
@@ -172,44 +143,41 @@ class WeatherMosaicCard extends HTMLElement {
           padding: 12px 0;
         }
         .grid-wrap { overflow: hidden; }
-        table { border-collapse: collapse; border-spacing: 0; width: 100%; }
+        .mosaic-grid {
+          display: grid;
+          grid-template-columns: max-content repeat(24, minmax(0, 1fr));
+          width: 100%;
+        }
         .day-label {
-          font-size: var(--label-fs, 17px);
+          font-size: var(--cell-fs, 17px);
           font-weight: 500;
           color: var(--primary-text-color, #ffffff);
-          padding-right: 6px;
+          padding-right: 8px;
           white-space: nowrap;
-          vertical-align: middle;
+          display: flex;
+          align-items: center;
+          height: var(--cell-h, 22px);
         }
         .hour-label {
-          width: var(--cell-w, 17px);
-          min-width: var(--cell-w, 17px);
-          max-width: var(--cell-w, 17px);
-          font-size: calc(var(--cell-fs, 20px) * 0.85);
+          font-size: var(--cell-fs, 17px);
           color: var(--primary-text-color, #ffffff);
-          opacity: 0.6;
-          text-align: center;
-          vertical-align: middle;
-          padding: 2px 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: var(--cell-h, 22px);
           white-space: nowrap;
           overflow: visible;
         }
         .cell {
-          width: var(--cell-w, 17px);
-          min-width: var(--cell-w, 17px);
-          max-width: var(--cell-w, 17px);
           height: var(--cell-h, 22px);
-          text-align: center;
-          vertical-align: middle;
           font-size: var(--cell-fs, 20px);
           font-weight: 550;
-          padding: 0;
-          margin: 0;
           position: relative;
+          overflow: visible;
         }
       </style>
       <ha-card>
-        <div class="grid-wrap"><table id="grid"></table></div>
+        <div class="grid-wrap"><div id="grid" class="mosaic-grid"></div></div>
       </ha-card>`;
 
     this._ro = new ResizeObserver(() => this._onResize());
@@ -219,20 +187,18 @@ class WeatherMosaicCard extends HTMLElement {
   _onResize() {
     const w = this.offsetWidth;
     if (!w) return;
-    const cellW  = Math.max(8,  Math.floor((w - 28 - 38) / 24));
-    const cellH  = Math.max(12, Math.floor(cellW * 1.2));
-    const cellFs = Math.max(8,  Math.floor(cellW * 0.94));
-    const labelFs = Math.max(10, Math.min(17, cellH));
-    const host = this.shadowRoot.host;
-    host.style.setProperty('--cell-w',  `${cellW}px`);
+    this._narrow  = w < 320;
+    const cellW   = Math.max(8,  Math.floor((w - 28) / 26)); // 24 cells + ~2 for label
+    const cellH   = Math.max(12, Math.floor(cellW * 1.2));
+    const cellFs  = Math.max(8,  Math.floor(cellW * 0.94));
+    const host    = this.shadowRoot.host;
     host.style.setProperty('--cell-h',  `${cellH}px`);
     host.style.setProperty('--cell-fs', `${cellFs}px`);
-    host.style.setProperty('--label-fs', `${labelFs}px`);
   }
 
   _showError(msg) {
-    const table = this.shadowRoot?.getElementById('grid');
-    if (table) table.innerHTML = `<tr><td class="error">${msg}</td></tr>`;
+    const el = this.shadowRoot?.getElementById('grid');
+    if (el) el.innerHTML = `<div class="error" style="grid-column:1/-1">${msg}</div>`;
   }
 
   // -------------------------------------------------------------------------
@@ -293,13 +259,21 @@ class WeatherMosaicCard extends HTMLElement {
     };
   }
 
+  _formatHour(h) {
+    if (this._config.time_format !== '12') return h;
+    if (h === 0)  return '12a';
+    if (h < 12)  return `${h}a`;
+    if (h === 12) return '12p';
+    return `${h - 12}p`;
+  }
+
   // -------------------------------------------------------------------------
   // Render grid
   // -------------------------------------------------------------------------
   _render(forecast) {
     if (!this.shadowRoot) this._build();
 
-    const DAYS = 7;
+    const DAYS = Math.min(7, Math.max(1, parseInt(this._config.days) || 7));
     const HOURS = Array.from({ length: 24 }, (_, i) => i);
     const dayMap = {}, dayLabels = [];
     const grid = [];
@@ -309,7 +283,7 @@ class WeatherMosaicCard extends HTMLElement {
       const key = dt.toDateString();
       if (!dayMap.hasOwnProperty(key) && Object.keys(dayMap).length < DAYS) {
         dayMap[key] = Object.keys(dayMap).length;
-        dayLabels.push(dt.toLocaleDateString('en-US', { weekday: 'short' }));
+        dayLabels.push(dt.toLocaleDateString('en-US', { weekday: this._narrow ? 'narrow' : 'short' }));
       }
       const di = dayMap[key];
       if (di === undefined) return;
@@ -347,87 +321,221 @@ class WeatherMosaicCard extends HTMLElement {
         }
       });
 
-      // Don't label past hours on today
+      // Don't label past hours on today, or the very first forecast cell
       if (d === 0) {
-        if (highMarked && highMarked.hour < nowHour) highMarked.entry.isHigh = false;
-        if (lowMarked && lowMarked.hour < nowHour) lowMarked.entry.isLow = false;
+        const firstForecastHour = HOURS.find(h => day[h]) ?? -1;
+        if (highMarked && (highMarked.hour < nowHour || highMarked.hour === firstForecastHour)) highMarked.entry.isHigh = false;
+        if (lowMarked && (lowMarked.hour < nowHour || lowMarked.hour === firstForecastHour)) lowMarked.entry.isLow = false;
       }
     }
 
-    const _hoursRow = () => {
-      const tr = document.createElement('tr');
-      tr.appendChild(document.createElement('td'));
+    const mosaic = this.shadowRoot.getElementById('grid');
+    mosaic.innerHTML = '';
+
+    const _appendHoursRow = () => {
+      mosaic.appendChild(document.createElement('div')); // empty label cell
       for (let h = 0; h < 24; h++) {
-        const td = document.createElement('td');
-        td.className = 'hour-label';
-        if ([3, 6, 9, 12, 15, 18, 21].includes(h)) td.textContent = h;
-        tr.appendChild(td);
+        const div = document.createElement('div');
+        div.className = 'hour-label';
+        if ([3, 6, 9, 12, 15, 18, 21].includes(h)) div.textContent = this._formatHour(h);
+        mosaic.appendChild(div);
       }
-      return tr;
     };
 
-    // Build table
-    const table = this.shadowRoot.getElementById('grid');
-    table.innerHTML = '';
+    if (this._config.hours === 'above') _appendHoursRow();
 
-    if (this._config.hours === 'above') table.appendChild(_hoursRow());
 
     for (let d = 0; d < DAYS; d++) {
-      const tr = document.createElement('tr');
-
-      const dl = document.createElement('td');
+      const dl = document.createElement('div');
       dl.className = 'day-label';
       dl.textContent = dayLabels[d] || '';
-      tr.appendChild(dl);
+      mosaic.appendChild(dl);
 
       HOURS.forEach(h => {
-        const td = document.createElement('td');
-        td.className = 'cell';
+        const cell = document.createElement('div');
+        cell.className = 'cell';
         const e = grid[d]?.[h];
 
         if (e) {
           const { bg, fg } = this._tempToColor(e.temp);
-          td.style.background = bg;
+          cell.style.background = bg;
           let label = '';
           if (e.isHigh || e.isLow) {
-            const displayTemp = this._config.temperature_unit === 'C'
+            label = this._config.temperature_unit === 'C'
               ? Math.round((e.temp - 32) * 5 / 9)
               : Math.round(e.temp);
-            label = displayTemp;
-          } else if (e.precip >= 50) {
+          } else if (this._config.show_precip !== false && e.precip >= 50) {
             label = '/';
-          } else if (e.precip >= 10) {
+          } else if (this._config.show_precip !== false && e.precip >= 10) {
             label = '-';
           }
           if (label) {
             const span = document.createElement('span');
             span.textContent = label;
-            span.style.cssText = `
-              position: absolute;
-              left: 50%; top: 50%;
-              transform: translate(-50%, -50%);
-              white-space: nowrap;
-              pointer-events: none;
-              z-index: 1;
-              color: ${fg};
-            `;
-            td.appendChild(span);
+            span.style.cssText = `position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); white-space:nowrap; pointer-events:none; z-index:1; color:${fg};`;
+            cell.appendChild(span);
           }
         } else {
-          td.style.background = 'transparent';
+          cell.style.background = 'rgba(128,128,128,0.08)';
         }
 
-        tr.appendChild(td);
+        mosaic.appendChild(cell);
       });
-
-      table.appendChild(tr);
     }
 
-    if (this._config.hours === 'below') table.appendChild(_hoursRow());
+    if (this._config.hours === 'below') _appendHoursRow();
   }
 }
 
 customElements.define('weather-mosaic-card', WeatherMosaicCard);
+
+class WeatherMosaicCardEditor extends HTMLElement {
+  set hass(hass) {
+    this._hass = hass;
+    this._populateEntitySelect();
+  }
+
+  _populateEntitySelect() {
+    const sel = this.shadowRoot?.getElementById('entity');
+    if (!sel || !this._hass) return;
+    const entities = Object.keys(this._hass.states)
+      .filter(id => id.startsWith('weather.'))
+      .sort();
+    sel.innerHTML = entities
+      .map(id => `<option value="${id}">${id}</option>`)
+      .join('');
+    sel.value = this._config?.entity || entities[0] || '';
+  }
+
+  setConfig(config) {
+    this._config = config;
+    if (!this.shadowRoot) {
+      this.attachShadow({ mode: 'open' });
+      this._buildForm();
+    }
+    this._updateValues();
+  }
+
+  _buildForm() {
+    this.shadowRoot.innerHTML = `
+      <style>
+        .form { display: flex; flex-direction: column; gap: 16px; padding: 8px 0; }
+        label { display: block; margin-bottom: 4px; font-size: 0.85rem; color: var(--secondary-text-color, #888); }
+        ha-entity-picker, select {
+          width: 100%;
+          display: block;
+        }
+        select {
+          padding: 8px;
+          border: 1px solid var(--divider-color, #ccc);
+          border-radius: 4px;
+          background: var(--card-background-color, #fff);
+          color: var(--primary-text-color, #000);
+          font-size: 1rem;
+        }
+      </style>
+      <div class="form">
+        <div>
+          <label>Title (optional)</label>
+          <input id="title" type="text" placeholder="Leave blank for no title" style="width:100%;padding:8px;border:1px solid var(--divider-color,#ccc);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color,#000);font-size:1rem;box-sizing:border-box;" />
+        </div>
+        <div>
+          <label>Weather Entity</label>
+          <select id="entity"></select>
+        </div>
+        <div>
+          <label>Temperature Unit</label>
+          <select id="temperature_unit">
+            <option value="F">Fahrenheit (°F)</option>
+            <option value="C">Celsius (°C)</option>
+          </select>
+        </div>
+        <div>
+          <label>Color Scale</label>
+          <select id="color_scale">
+            <option value="mosaic">Mosaic (default)</option>
+            <option value="blue_red">Blue → Red</option>
+            <option value="turbo">Turbo</option>
+          </select>
+        </div>
+        <div>
+          <label>Hour Labels</label>
+          <select id="hours">
+            <option value="">Hidden</option>
+            <option value="above">Above chart</option>
+            <option value="below">Below chart</option>
+          </select>
+        </div>
+        <div>
+          <label>Time Format</label>
+          <select id="time_format">
+            <option value="24">24-hour (3, 6, 9…)</option>
+            <option value="12">12-hour (3a, 6a, 9a…)</option>
+          </select>
+        </div>
+        <div>
+          <label>Precipitation Symbols</label>
+          <select id="show_precip">
+            <option value="true">Show</option>
+            <option value="false">Hide</option>
+          </select>
+        </div>
+        <div>
+          <label>Days to show</label>
+          <select id="days">
+            ${[1,2,3,4,5,6,7].map(d => `<option value="${d}">${d}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+
+    this.shadowRoot.getElementById('title').addEventListener('input', e => {
+      this._changed('title', e.target.value);
+    });
+
+    this._populateEntitySelect();
+
+    ['entity', 'temperature_unit', 'color_scale', 'hours', 'time_format', 'show_precip', 'days'].forEach(id => {
+      this.shadowRoot.getElementById(id).addEventListener('change', e => {
+        this._changed(id, e.target.value);
+      });
+    });
+  }
+
+  _updateValues() {
+    if (!this.shadowRoot) return;
+    const titleEl = this.shadowRoot.getElementById('title');
+    if (titleEl) {
+      const derived = (this._config.entity || '').replace(/^weather\./, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      titleEl.value = this._config.title !== undefined ? this._config.title : derived;
+    }
+    const sel = (id, val) => {
+      const el = this.shadowRoot.getElementById(id);
+      if (el) el.value = val || '';
+    };
+    sel('entity', this._config.entity || '');
+    sel('temperature_unit', this._config.temperature_unit || 'F');
+    sel('color_scale', this._config.color_scale || 'mosaic');
+    sel('hours', this._config.hours || '');
+    sel('time_format', this._config.time_format || '24');
+    sel('show_precip', this._config.show_precip === false ? 'false' : 'true');
+    sel('days', this._config.days || '7');
+  }
+
+  _changed(key, value) {
+    let coerced = value;
+    if (value === 'true')  coerced = true;
+    if (value === 'false') coerced = false;
+    const config = { ...this._config, [key]: coerced };
+    if (key !== 'title' && (coerced === '' || coerced === undefined)) delete config[key];
+    this.dispatchEvent(new CustomEvent('config-changed', {
+      detail: { config },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+}
+
+customElements.define('weather-mosaic-card-editor', WeatherMosaicCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({

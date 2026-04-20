@@ -1,6 +1,6 @@
 # Weather Mosaic Card
 
-A custom [Home Assistant](https://www.home-assistant.io/) Lovelace card that displays a 7-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Inspired by the periodic table, it takes advantage of the natural periodicity of daily weather cycles to let you spot temperature trends, hot afternoons, cool nights, and rainy periods at a glance.
+A custom [Home Assistant](https://www.home-assistant.io/) Lovelace card that displays a 7-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, letting you spot daily patterns, hot afternoons, cool nights, and rainy periods at a glance.
 
 ![Weather Mosaic Card screenshot](assets/screenshot.png)
 
@@ -8,7 +8,7 @@ A custom [Home Assistant](https://www.home-assistant.io/) Lovelace card that dis
 
 ## How It Works
 
-Each cell represents one hour of one day. The cell color encodes temperature — cool blues on the left of the scale, through greens and yellows, to deep reds for extreme heat. Precipitation probability is shown as subtle markers within cells. Daily high and low temperatures are labeled directly on their peak cells.
+Each cell represents one hour of one day. Cell color encodes temperature using your choice of color scale. Precipitation probability is shown as subtle markers within cells. Daily high and low temperatures are labeled directly on their peak cells. The card scales to fit any dashboard column width.
 
 ---
 
@@ -37,7 +37,7 @@ Each cell represents one hour of one day. The cell color encodes temperature —
 
 ## Configuration
 
-Add the card to your dashboard via the UI or YAML:
+The card supports a visual editor — click the card in the dashboard editor to configure it. All options are also available via YAML:
 
 ```yaml
 type: custom:weather-mosaic-card
@@ -48,24 +48,40 @@ entity: weather.your_weather_entity
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `entity` | string | `weather.pirateweather` | Your weather entity ID |
+| `entity` | string | `weather.pirateweather` | Weather entity ID (must provide hourly forecast) |
+| `title` | string | Derived from entity name | Card title. Set to empty string to hide. |
+| `temperature_unit` | `F` \| `C` | `F` | Unit for displayed temperature labels |
+| `color_scale` | `mosaic` \| `blue_red` \| `turbo` | `mosaic` | Color scale used to encode temperature |
+| `days` | 1–7 | `7` | Number of days to display |
+| `hours` | `above` \| `below` | *(hidden)* | Show hour labels above or below the grid |
+| `time_format` | `12` \| `24` | `24` | Format for hour labels (3a/6p vs 3/15) |
+| `show_precip` | boolean | `true` | Show or hide precipitation symbols |
+
+### Example
+
+```yaml
+type: custom:weather-mosaic-card
+entity: weather.pirateweather
+title: My Weather
+temperature_unit: F
+color_scale: turbo
+days: 7
+hours: above
+time_format: 12
+show_precip: true
+```
 
 ---
 
-## Color Scale
+## Color Scales
 
-The temperature color scale is currently calibrated for **Fahrenheit**. Celsius support is planned for v0.2.0.
+| Scale | Description |
+|-------|-------------|
+| `mosaic` | Multi-color scale: blue → teal → green → yellow → orange → red |
+| `blue_red` | Clean diverging scale: blue (cold) → red (hot) |
+| `turbo` | Perceptually uniform: blue → green → yellow → red |
 
-| Color | Temperature (°F) |
-|-------|-----------------|
-| 🔵 Light blue | Below 30° |
-| 🔵 Blue | 30–40° |
-| 🟢 Teal | 40–55° |
-| 🟢 Green | 55–65° |
-| 🟡 Yellow-green | 65–75° |
-| 🟡 Yellow | 75–85° |
-| 🟠 Orange | 85–95° |
-| 🔴 Red | 95°+ |
+All scales are calibrated for temperatures in °F. When `temperature_unit: C` is set, displayed labels are converted but the color mapping remains °F-based — set your HA weather integration to report in °F for best results.
 
 ---
 
@@ -76,31 +92,22 @@ The temperature color scale is currently calibrated for **Fahrenheit**. Celsius 
 | `-` | 10–49% chance of precipitation |
 | `/` | 50%+ chance of precipitation |
 
+Set `show_precip: false` to hide these markers.
+
 ---
 
 ## Tested With
 
 - [PirateWeather](https://pirateweather.net/)
+- [Open-Meteo](https://www.home-assistant.io/integrations/open_meteo/)
 
-*If you use this card with another weather integration, please open an issue or PR to add it to this list.*
-
----
-
-## Roadmap
-
-- [ ] Celsius / automatic unit detection
-- [ ] Configurable number of days
-- [ ] Configurable hour range
-- [ ] Optional title
-- [ ] Show/hide precipitation markers
-- [ ] Custom color scale presets
-- [ ] HACS default repository listing
+*Using this card with another integration? Open an issue or PR to add it to this list.*
 
 ---
 
 ## Contributing
 
-Issues and pull requests are welcome! If you find a bug or have a feature request, please [open an issue](../../issues).
+Issues and pull requests are welcome. If you find a bug or have a feature request, please [open an issue](../../issues).
 
 ---
 
