@@ -57,6 +57,7 @@ entity: weather.your_weather_entity
 | `hours` | `above` \| `below` | *(hidden)* | Show hour labels above or below the grid |
 | `time_format` | `12` \| `24` | `24` | Format for hour labels (3a/6p vs 3/15) |
 | `show_precip` | boolean | `true` | Show or hide precipitation symbols |
+| `timezone` | string | Auto-detected from entity | IANA timezone override (e.g. `America/New_York`) |
 
 ### Example
 

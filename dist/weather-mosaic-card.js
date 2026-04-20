@@ -41,9 +41,10 @@ class WeatherMosaicCard extends HTMLElement {
 
     this._updateTitle();
 
-    // If we already have hass (config set after hass), subscribe now
     if (this._hass && !this._unsubForecast) {
       this._subscribeForecast();
+    } else if (this._lastForecast) {
+      this._render(this._lastForecast);
     }
   }
 
@@ -271,6 +272,7 @@ class WeatherMosaicCard extends HTMLElement {
   // Render grid
   // -------------------------------------------------------------------------
   _render(forecast) {
+    this._lastForecast = forecast;
     if (!this.shadowRoot) this._build();
 
     const DAYS = Math.min(7, Math.max(1, parseInt(this._config.days) || 7));
@@ -278,23 +280,37 @@ class WeatherMosaicCard extends HTMLElement {
     const dayMap = {}, dayLabels = [];
     const grid = [];
 
+    const tz = this._config.timezone
+      || this._hass?.states[this._config.entity]?.attributes?.timezone
+      || this._hass?.config?.time_zone
+      || null;
+    const tzHour = (d) => {
+      if (!tz) return d.getHours();
+      return parseInt(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' }).formatToParts(d).find(p => p.type === 'hour').value);
+    };
+    const tzKey = (d) => {
+      if (!tz) return d.toDateString();
+      return new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+    };
+    const tzWday = (d) => d.toLocaleDateString('en-US', { weekday: this._narrow ? 'narrow' : 'short', ...(tz ? { timeZone: tz } : {}) });
+
     forecast.forEach(item => {
       const dt = new Date(item.datetime);
-      const key = dt.toDateString();
+      const key = tzKey(dt);
       if (!dayMap.hasOwnProperty(key) && Object.keys(dayMap).length < DAYS) {
         dayMap[key] = Object.keys(dayMap).length;
-        dayLabels.push(dt.toLocaleDateString('en-US', { weekday: this._narrow ? 'narrow' : 'short' }));
+        dayLabels.push(tzWday(dt));
       }
       const di = dayMap[key];
       if (di === undefined) return;
       if (!grid[di]) grid[di] = {};
-      grid[di][dt.getHours()] = {
+      grid[di][tzHour(dt)] = {
         temp: item.temperature,
         precip: item.precipitation_probability || 0,
       };
     });
 
-    const nowHour = new Date().getHours();
+    const nowHour = tzHour(new Date());
 
     // Mark daily high/low per cell
     for (let d = 0; d < DAYS; d++) {
@@ -440,6 +456,10 @@ class WeatherMosaicCardEditor extends HTMLElement {
           <input id="title" type="text" placeholder="Leave blank for no title" style="width:100%;padding:8px;border:1px solid var(--divider-color,#ccc);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color,#000);font-size:1rem;box-sizing:border-box;" />
         </div>
         <div>
+          <label>Timezone override (auto-detected from entity if blank)</label>
+          <input id="timezone" type="text" placeholder="America/New_York" style="width:100%;padding:8px;border:1px solid var(--divider-color,#ccc);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color,#000);font-size:1rem;box-sizing:border-box;" />
+        </div>
+        <div>
           <label>Weather Entity</label>
           <select id="entity"></select>
         </div>
@@ -491,6 +511,9 @@ class WeatherMosaicCardEditor extends HTMLElement {
     this.shadowRoot.getElementById('title').addEventListener('input', e => {
       this._changed('title', e.target.value);
     });
+    this.shadowRoot.getElementById('timezone').addEventListener('input', e => {
+      this._changed('timezone', e.target.value);
+    });
 
     this._populateEntitySelect();
 
@@ -503,6 +526,8 @@ class WeatherMosaicCardEditor extends HTMLElement {
 
   _updateValues() {
     if (!this.shadowRoot) return;
+    const tzEl = this.shadowRoot.getElementById('timezone');
+    if (tzEl) tzEl.value = this._config.timezone || '';
     const titleEl = this.shadowRoot.getElementById('title');
     if (titleEl) {
       const derived = (this._config.entity || '').replace(/^weather\./, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
