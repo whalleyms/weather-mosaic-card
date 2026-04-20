@@ -2,7 +2,8 @@
 
 A custom [Home Assistant](https://www.home-assistant.io/) Lovelace card that displays a 7-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, letting you spot daily patterns, hot afternoons, cool nights, and rainy periods at a glance.
 
-![Weather Mosaic Card screenshot](assets/screenshot.png)
+![Weather Mosaic Card - light theme](assets/weather_mosaic_white.png)
+![Weather Mosaic Card - dark theme](assets/weather_mosaic_black.png)
 
 ---
 
