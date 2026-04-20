@@ -282,7 +282,6 @@ class WeatherMosaicCard extends HTMLElement {
 
     const tz = this._config.timezone
       || this._hass?.states[this._config.entity]?.attributes?.timezone
-      || this._hass?.config?.time_zone
       || null;
     const tzHour = (d) => {
       if (!tz) return d.getHours();
