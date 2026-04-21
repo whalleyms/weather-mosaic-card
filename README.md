@@ -9,6 +9,14 @@ A custom [Home Assistant](https://www.home-assistant.io/) Lovelace card that dis
 
 ---
 
+## Design
+
+Most weather displays are cluttered — icons, numbers, labels, legends competing for attention. This card takes a different approach: encode everything into color and let the eye do the work.
+
+The complete 7-day hourly forecast fits in a single glance. This is possible because daily temperatures follow a strongly predictable diurnal cycle — cool before dawn, warming through the morning, peaking mid-afternoon, falling through the evening — and that rhythm maps naturally onto the grid. But the display also captures multi-day patterns: heat waves appear as broad warm patches, cold fronts as abrupt color shifts, rainy stretches as clusters of precipitation markers spanning several rows. Your mind quickly adapts to these patterns, enabling you to read a week of weather in one eyespan.
+
+The design is inspired by Edward Tufte's principle of maximizing the data-to-ink ratio: show as much information as possible with as little visual noise as possible. It has been refined over several years, first as a [MagicMirror](https://magicmirror.builders/) module and now as a Home Assistant card. It works especially well as a kiosk or always-on display where you want to glance at the forecast without having to physically interact.
+
 ## How It Works
 
 Each cell represents one hour of one day. Cell color encodes temperature using your choice of color scale. Precipitation probability is shown as subtle markers within cells. Daily high and low temperatures are labeled directly on their peak cells. The card scales to fit any dashboard column width.
