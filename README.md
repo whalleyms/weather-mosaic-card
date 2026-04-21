@@ -133,6 +133,7 @@ Set `show_precip: false` to hide these markers.
 
 - [PirateWeather](https://pirateweather.net/)
 - [Open-Meteo](https://www.home-assistant.io/integrations/open_meteo/)
+- [National Weather Service](https://www.home-assistant.io/integrations/nws/)
 
 *Using this card with another integration? Open an issue or PR to add it to this list.*
 
