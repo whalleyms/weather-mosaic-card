@@ -93,6 +93,8 @@ class WeatherMosaicCard extends HTMLElement {
     this._config = {
       entity: 'weather.pirateweather',
       temperature_unit: 'F',
+      hours: 'above',
+      time_format: '12',
       ...config,
     };
 
