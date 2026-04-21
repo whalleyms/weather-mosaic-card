@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Mosaic Card — Test Fixture</title>
+  <script src="dist/weather-mosaic-card.js"></script>
+  <style>
+    /* Simulate a HA dark dashboard */
+    :root {
+      --ha-card-background: #1f2937;
+      --card-background-color: #1f2937;
+      --primary-text-color: #e5e7eb;
+      --secondary-text-color: #9ca3af;
+      --ha-card-header-color: #f9fafb;
+      --divider-color: #374151;
+      --error-color: #ef4444;
+    }
+    body {
+      background: #111827;
+      font-family: sans-serif;
+      padding: 24px;
+      margin: 0;
+    }
+    h1 {
+      color: #6b7280;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 20px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 20px;
+      max-width: 1400px;
+    }
+    weather-mosaic-card { display: block; }
+  </style>
+</head>
+<body>
+  <h1>Weather Mosaic Card — Test Fixture</h1>
+  <div class="grid" id="cards"></div>
+
+  <script>
+    // -------------------------------------------------------------------------
+    // Forecast generator — 7 days × 24 h of synthetic data
+    // -------------------------------------------------------------------------
+    function generateForecast({ baseTemp, swing, tzOffsetHours, conditions }) {
+      const now   = new Date();
+      const start = new Date(now);
+      // Start at the top of the current UTC hour, back-filled to midnight local
+      start.setUTCHours(start.getUTCHours() - ((start.getUTCHours() + tzOffsetHours + 24) % 24), 0, 0, 0);
+
+      return Array.from({ length: 7 * 24 }, (_, h) => {
+        const dt      = new Date(start.getTime() + h * 3_600_000);
+        const localH  = ((dt.getUTCHours() + tzOffsetHours) + 24) % 24;
+        // Coldest ~4 am, warmest ~3 pm local
+        const cycle   = -Math.cos((localH - 4) / 24 * 2 * Math.PI);
+        const temp    = Math.round((baseTemp + swing * cycle) * 10) / 10;
+        const dayIdx  = Math.floor(h / 24);
+        const cond    = conditions[dayIdx % conditions.length];
+        const precip  = cond.includes('snow') ? 75
+                      : cond.includes('rain') ? 65
+                      : cond === 'cloudy'     ? 25
+                      : 5;
+        return { datetime: dt.toISOString(), temperature: temp,
+                 precipitation_probability: precip, condition: cond };
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // Minimal mock hass object
+    // -------------------------------------------------------------------------
+    function makeMockHass(entityId, currentCondition, attrs, forecastOpts) {
+      const forecast = generateForecast(forecastOpts);
+      return {
+        states: {
+          [entityId]: {
+            state: currentCondition,
+            attributes: { temperature_unit: '°F', ...attrs },
+          },
+        },
+        config: { latitude: attrs.latitude, longitude: attrs.longitude },
+        connection: {
+          subscribeMessage(callback) {
+            Promise.resolve().then(() => callback({ forecast }));
+            return Promise.resolve(() => {});
+          },
+        },
+      };
+    }
+
+    // -------------------------------------------------------------------------
+    // Add a card to the page
+    // -------------------------------------------------------------------------
+    function addCard(config, hass) {
+      const el = document.createElement('weather-mosaic-card');
+      document.getElementById('cards').appendChild(el);
+      el.setConfig(config);
+      el.hass = hass;
+    }
+
+    // -------------------------------------------------------------------------
+    // Test cards
+    // -------------------------------------------------------------------------
+
+    // Sunnyvale CA — mild, some rain mid-week
+    addCard(
+      { entity: 'weather.sunnyvale', title: 'Sunnyvale (PDT)',
+        hours: 'above', time_format: '12' },
+      makeMockHass('weather.sunnyvale', 'cloudy',
+        { temperature: 62, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 60, swing: 12, tzOffsetHours: -7,
+          conditions: ['sunny','partlycloudy','cloudy','rainy','rainy','partlycloudy','sunny'] })
+    );
+
+    // Pittsburgh PA — cooler, snow early week
+    addCard(
+      { entity: 'weather.pittsburgh', title: 'Pittsburgh (EDT)',
+        hours: 'above', time_format: '12' },
+      makeMockHass('weather.pittsburgh', 'snowy',
+        { temperature: 31, latitude: 40.44, longitude: -79.98, timezone: 'America/New_York' },
+        { baseTemp: 38, swing: 16, tzOffsetHours: -4,
+          conditions: ['snowy','snowy-rainy','cloudy','rainy','partlycloudy','sunny','sunny'] })
+    );
+
+    // Same card — Celsius / blue_red scale
+    addCard(
+      { entity: 'weather.sunnyvale', title: 'Sunnyvale — °C / Blue-Red',
+        temperature_unit: 'C', color_scale: 'blue_red', hours: 'above', time_format: '24' },
+      makeMockHass('weather.sunnyvale', 'cloudy',
+        { temperature: 62, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 60, swing: 12, tzOffsetHours: -7,
+          conditions: ['sunny','partlycloudy','cloudy','rainy','rainy','partlycloudy','sunny'] })
+    );
+
+    // Minimal — no header, no labels
+    addCard(
+      { entity: 'weather.sunnyvale', title: '',
+        show_current: false, show_minmax: false, show_precip: false, days: 5 },
+      makeMockHass('weather.sunnyvale', 'sunny',
+        { temperature: 68, latitude: 37.37, longitude: -122.04 },
+        { baseTemp: 65, swing: 10, tzOffsetHours: -7,
+          conditions: ['sunny','sunny','partlycloudy','cloudy','sunny','sunny','sunny'] })
+    );
+  </script>
+</body>
+</html>
