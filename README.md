@@ -36,6 +36,20 @@ Each cell represents one hour of one day. Cell color encodes temperature using y
 
 ---
 
+## Weather Integrations
+
+This card requires a Home Assistant weather entity that provides **hourly** forecast data. If you don't have one set up yet, here are the easiest options:
+
+| Integration | Cost | Coverage | Notes |
+|-------------|------|----------|-------|
+| [Open-Meteo](https://www.home-assistant.io/integrations/open_meteo/) | Free, no account | Global | Built into HA — just add the integration and pick your location. Easiest starting point. |
+| [PirateWeather](https://pirateweather.net/) | Free tier available | Global | Requires a free API key. Closely mirrors the Dark Sky API. |
+| [National Weather Service](https://www.home-assistant.io/integrations/nws/) | Free, no account | US only | Built into HA. Good choice if you're in the US and prefer an official government source. |
+
+Once your integration is set up, HA will create a `weather.` entity you can point this card at.
+
+---
+
 ## Configuration
 
 The card supports a visual editor — click the card in the dashboard editor to configure it. All options are also available via YAML:

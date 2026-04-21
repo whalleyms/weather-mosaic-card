@@ -17,6 +17,44 @@
 
 const _WMC_LOADED = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+const COLOR_SCALES = {
+  mosaic: [
+    [10,  [200, 230, 255]],
+    [30,  [160, 200, 255]],
+    [40,  [ 91, 163, 255]],
+    [55,  [ 61, 217, 160]],
+    [65,  [163, 224,  58]],
+    [75,  [255, 255,  85]],
+    [85,  [255, 176,  58]],
+    [95,  [255,  92,  58]],
+    [105, [178,  40,  40]],
+  ],
+  blue_red: [
+    [10,  [ 33, 102, 172]],
+    [30,  [ 67, 147, 195]],
+    [45,  [146, 197, 222]],
+    [55,  [209, 229, 240]],
+    [65,  [253, 219, 199]],
+    [75,  [244, 165, 130]],
+    [85,  [214,  96,  77]],
+    [95,  [178,  24,  43]],
+    [105, [103,   0,  31]],
+  ],
+  turbo: [
+    [10,  [ 35,  23, 123]],
+    [25,  [ 18, 118, 220]],
+    [40,  [ 20, 200, 195]],
+    [55,  [ 57, 231, 107]],
+    [65,  [146, 241,  57]],
+    [75,  [239, 211,  33]],
+    [85,  [253, 132,  26]],
+    [95,  [210,  50,  10]],
+    [105, [122,   4,   3]],
+  ],
+};
+
 class WeatherMosaicCard extends HTMLElement {
 
   // -------------------------------------------------------------------------
@@ -29,7 +67,6 @@ class WeatherMosaicCard extends HTMLElement {
     if (!this.shadowRoot) { this._build(); this._updateTitle(); }
     this._updateCurrent();
 
-    // Subscribe to forecast on first hass assignment
     if (firstLoad && this._config) {
       this._subscribeForecast();
     }
@@ -64,35 +101,38 @@ class WeatherMosaicCard extends HTMLElement {
   _updateCurrent() {
     const el = this.shadowRoot?.getElementById('card-current');
     if (!el) return;
-    if (this._config?.show_current === false) {
-      el.textContent = '';
-      this._updateHeaderVisibility();
-      return;
+
+    let text = '';
+    if (this._config?.show_current !== false) {
+      const state = this._hass?.states[this._config?.entity];
+      const temp  = state?.attributes?.temperature;
+      if (state && temp != null) {
+        const nativeUnit  = state.attributes.temperature_unit || '°F';
+        const displayUnit = this._config?.temperature_unit || 'F';
+        const isNativeF   = nativeUnit.includes('F');
+        const wantF       = displayUnit === 'F';
+        let t = Math.round(temp);
+        if (isNativeF && !wantF) t = Math.round((temp - 32) * 5 / 9);
+        else if (!isNativeF && wantF) t = Math.round(temp * 9 / 5 + 32);
+        const conditionMap = { partlycloudy: 'Partly Cloudy', 'clear-night': 'Clear' };
+        const rawCondition = (state.state || '').toLowerCase();
+        const condition = rawCondition === 'unknown' ? ''
+          : conditionMap[state.state] || rawCondition.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        text = condition ? `${t}°${displayUnit}  ${condition}` : `${t}°${displayUnit}`;
+      }
     }
-    const state = this._hass?.states[this._config?.entity];
-    if (!state) { el.textContent = ''; this._updateHeaderVisibility(); return; }
-    const temp = state.attributes.temperature;
-    if (temp == null) { el.textContent = ''; this._updateHeaderVisibility(); return; }
-    const nativeUnit = state.attributes.temperature_unit || '°F';
-    const displayUnit = this._config?.temperature_unit || 'F';
-    const isNativeF = nativeUnit.includes('F');
-    const wantF = displayUnit === 'F';
-    let t = Math.round(temp);
-    if (isNativeF && !wantF) t = Math.round((temp - 32) * 5 / 9);
-    else if (!isNativeF && wantF) t = Math.round(temp * 9 / 5 + 32);
-    const conditionMap = { partlycloudy: 'Partly Cloudy', 'clear-night': 'Clear' };
-    const condition = conditionMap[state.state]
-      || (state.state || '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    el.textContent = `${t}°${displayUnit}  ${condition}`;
+
+    el.textContent = text;
     this._updateHeaderVisibility();
   }
 
   _updateHeaderVisibility() {
     const header = this.shadowRoot?.querySelector('.card-header');
     if (!header) return;
-    const titleEl   = this.shadowRoot.getElementById('card-title');
-    const currentEl = this.shadowRoot.getElementById('card-current');
-    const hasContent = (titleEl?.textContent || '') || (currentEl?.textContent || '');
+    const hasContent = !!(
+      this.shadowRoot.getElementById('card-title')?.textContent ||
+      this.shadowRoot.getElementById('card-current')?.textContent
+    );
     header.style.display = hasContent ? '' : 'none';
   }
 
@@ -153,9 +193,9 @@ class WeatherMosaicCard extends HTMLElement {
   }
 
   _fallbackToAttribute() {
-    const state = this._hass?.states[this._config.entity];
+    const state    = this._hass?.states[this._config.entity];
     const forecast = state?.attributes?.forecast;
-    if (forecast && forecast.length > 0) {
+    if (forecast?.length > 0) {
       this._render(forecast);
     } else {
       this._showError(
@@ -263,7 +303,7 @@ class WeatherMosaicCard extends HTMLElement {
 
   _onResize() {
     const w = this.offsetWidth;
-    if (!w) return;
+    if (!w || !this._config) return;
     this._narrow  = w < 320;
     const scale   = parseFloat(this._config.font_scale) || 1.0;
     const cellW   = Math.max(8,  Math.floor((w - 28) / 26));
@@ -271,8 +311,8 @@ class WeatherMosaicCard extends HTMLElement {
     const cellFs  = Math.max(6,  Math.floor(cellW * 0.94 * scale));
     const labelFs = Math.max(5,  Math.floor(cellFs * 0.8));
     const host    = this.shadowRoot.host;
-    host.style.setProperty('--cell-h',  `${cellH}px`);
-    host.style.setProperty('--cell-fs', `${cellFs}px`);
+    host.style.setProperty('--cell-h',   `${cellH}px`);
+    host.style.setProperty('--cell-fs',  `${cellFs}px`);
     host.style.setProperty('--label-fs', `${labelFs}px`);
   }
 
@@ -282,60 +322,25 @@ class WeatherMosaicCard extends HTMLElement {
   }
 
   // -------------------------------------------------------------------------
-  // Color scale: temperature (°F) → RGB
+  // Color scale: temperature (°F) → { bg, fg }
   // -------------------------------------------------------------------------
   _tempToColor(f) {
-    const scales = {
-      mosaic: [
-        [10,  [200, 230, 255]],
-        [30,  [160, 200, 255]],
-        [40,  [ 91, 163, 255]],
-        [55,  [ 61, 217, 160]],
-        [65,  [163, 224,  58]],
-        [75,  [255, 255,  85]],
-        [85,  [255, 176,  58]],
-        [95,  [255,  92,  58]],
-        [105, [178,  40,  40]],
-      ],
-      blue_red: [
-        [10,  [ 33, 102, 172]],
-        [30,  [ 67, 147, 195]],
-        [45,  [146, 197, 222]],
-        [55,  [209, 229, 240]],
-        [65,  [253, 219, 199]],
-        [75,  [244, 165, 130]],
-        [85,  [214,  96,  77]],
-        [95,  [178,  24,  43]],
-        [105, [103,   0,  31]],
-      ],
-      turbo: [
-        [10,  [ 35,  23, 123]],
-        [25,  [ 18, 118, 220]],
-        [40,  [ 20, 200, 195]],
-        [55,  [ 57, 231, 107]],
-        [65,  [146, 241,  57]],
-        [75,  [239, 211,  33]],
-        [85,  [253, 132,  26]],
-        [95,  [210,  50,  10]],
-        [105, [122,   4,   3]],
-      ],
-    };
-    const stops = scales[this._config.color_scale] ?? scales.mosaic;
+    const stops = COLOR_SCALES[this._config.color_scale] ?? COLOR_SCALES.mosaic;
     let lo = stops[0], hi = stops[stops.length - 1];
     for (let i = 0; i < stops.length - 1; i++) {
       if (f >= stops[i][0] && f <= stops[i + 1][0]) {
         lo = stops[i]; hi = stops[i + 1]; break;
       }
     }
-    const t = Math.max(0, Math.min(1, (f - lo[0]) / (hi[0] - lo[0])));
+    const t    = Math.max(0, Math.min(1, (f - lo[0]) / (hi[0] - lo[0])));
     const lerp = (a, b) => Math.round(a + (b - a) * t);
-    const r = lerp(lo[1][0], hi[1][0]);
-    const g = lerp(lo[1][1], hi[1][1]);
-    const b = lerp(lo[1][2], hi[1][2]);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    const r    = lerp(lo[1][0], hi[1][0]);
+    const g    = lerp(lo[1][1], hi[1][1]);
+    const b    = lerp(lo[1][2], hi[1][2]);
+    const lum  = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return {
       bg: `rgb(${r},${g},${b})`,
-      fg: luminance > 0.5 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+      fg: lum > 0.5 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
     };
   }
 
@@ -352,83 +357,90 @@ class WeatherMosaicCard extends HTMLElement {
   // -------------------------------------------------------------------------
   _render(forecast) {
     this._lastForecast = forecast;
-    if (!this.shadowRoot) this._build();
 
     const DAYS = Math.min(7, Math.max(1, parseInt(this._config.days) || 7));
-    const HOURS = Array.from({ length: 24 }, (_, i) => i);
     const dayMap = {}, dayLabels = [];
     const grid = [];
+    let dayCount = 0;
 
     const tz = this._config.timezone
       || this._hass?.states[this._config.entity]?.attributes?.timezone
       || null;
-    const tzHour = (d) => {
-      if (!tz) return d.getHours();
-      return parseInt(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' }).formatToParts(d).find(p => p.type === 'hour').value);
-    };
-    const tzKey = (d) => {
-      if (!tz) return d.toDateString();
-      return new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-    };
-    const tzWday = (d) => d.toLocaleDateString('en-US', { weekday: this._narrow ? 'narrow' : 'short', ...(tz ? { timeZone: tz } : {}) });
+
+    // Cache formatters — Intl.DateTimeFormat is expensive to construct
+    const fmtHour = tz
+      ? new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' })
+      : null;
+    const fmtKey = tz
+      ? new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+      : null;
+
+    const tzHour = (d) => tz
+      ? parseInt(fmtHour.formatToParts(d).find(p => p.type === 'hour').value)
+      : d.getHours();
+    const tzKey  = (d) => tz ? fmtKey.format(d) : d.toDateString();
+    const tzWday = (d) => d.toLocaleDateString('en-US', {
+      weekday: this._narrow ? 'narrow' : 'short',
+      ...(tz ? { timeZone: tz } : {}),
+    });
 
     forecast.forEach(item => {
-      const dt = new Date(item.datetime);
+      const dt  = new Date(item.datetime);
       const key = tzKey(dt);
-      if (!dayMap.hasOwnProperty(key) && Object.keys(dayMap).length < DAYS) {
-        dayMap[key] = Object.keys(dayMap).length;
+      if (!dayMap.hasOwnProperty(key) && dayCount < DAYS) {
+        dayMap[key] = dayCount++;
         dayLabels.push(tzWday(dt));
       }
       const di = dayMap[key];
       if (di === undefined) return;
       if (!grid[di]) grid[di] = {};
       grid[di][tzHour(dt)] = {
-        temp: item.temperature,
-        precip: item.precipitation_probability || 0,
+        temp:      item.temperature,
+        precip:    item.precipitation_probability || 0,
         condition: item.condition || '',
       };
     });
 
     const nowHour = tzHour(new Date());
 
-    // Mark daily high/low per cell
+    // Mark daily high/low
     for (let d = 0; d < DAYS; d++) {
       const day = grid[d];
       if (!day) continue;
-      const valid = Object.values(day);
-      if (!valid.length) continue;
-      const mx = Math.max(...valid.map(e => e.temp));
-      const mn = Math.min(...valid.map(e => e.temp));
-      let highMarked = false, lowMarked = false;
+      const vals = Object.values(day);
+      if (!vals.length) continue;
+      const mx = Math.max(...vals.map(e => e.temp));
+      const mn = Math.min(...vals.map(e => e.temp));
+      let highMarked = null, lowMarked = null;
 
       HOURS.forEach(h => {
         const e = day[h];
         if (!e) return;
         if (e.temp === mx) {
           if (highMarked) highMarked.entry.isHigh = false;
-          e.isHigh = true;
+          e.isHigh   = true;
           highMarked = { entry: e, hour: h };
         }
         if (d !== 0 && e.temp === mn) {
           if (lowMarked) lowMarked.entry.isLow = false;
-          e.isLow = true;
+          e.isLow   = true;
           lowMarked = { entry: e, hour: h };
         }
       });
 
-      // Don't label past hours on today, or the very first forecast cell
+      // Suppress labels on past hours or the very first forecast cell of today
       if (d === 0) {
-        const firstForecastHour = HOURS.find(h => day[h]) ?? -1;
-        if (highMarked && (highMarked.hour < nowHour || highMarked.hour === firstForecastHour)) highMarked.entry.isHigh = false;
-        if (lowMarked && (lowMarked.hour < nowHour || lowMarked.hour === firstForecastHour)) lowMarked.entry.isLow = false;
+        const firstHour = HOURS.find(h => day[h]) ?? -1;
+        if (highMarked && (highMarked.hour < nowHour || highMarked.hour === firstHour)) highMarked.entry.isHigh = false;
+        if (lowMarked  && (lowMarked.hour  < nowHour || lowMarked.hour  === firstHour)) lowMarked.entry.isLow  = false;
       }
     }
 
     const mosaic = this.shadowRoot.getElementById('grid');
     mosaic.innerHTML = '';
 
-    const _appendHoursRow = () => {
-      mosaic.appendChild(document.createElement('div')); // empty label cell
+    const appendHoursRow = () => {
+      mosaic.appendChild(document.createElement('div')); // spacer for day-label column
       for (let h = 0; h < 24; h++) {
         const div = document.createElement('div');
         div.className = 'hour-label';
@@ -441,12 +453,11 @@ class WeatherMosaicCard extends HTMLElement {
       }
     };
 
-    if (this._config.hours === 'above') _appendHoursRow();
-
+    if (this._config.hours === 'above') appendHoursRow();
 
     for (let d = 0; d < DAYS; d++) {
       const dl = document.createElement('div');
-      dl.className = 'day-label';
+      dl.className   = 'day-label';
       dl.textContent = dayLabels[d] || '';
       mosaic.appendChild(dl);
 
@@ -458,6 +469,7 @@ class WeatherMosaicCard extends HTMLElement {
         if (e) {
           const { bg, fg } = this._tempToColor(e.temp);
           cell.style.background = bg;
+
           let label = '';
           if (this._config.show_minmax !== false && (e.isHigh || e.isLow)) {
             label = this._config.temperature_unit === 'C'
@@ -468,10 +480,11 @@ class WeatherMosaicCard extends HTMLElement {
           } else if (this._config.show_precip !== false && e.precip >= 10) {
             label = '-';
           }
+
           if (label) {
             const span = document.createElement('span');
             span.textContent = label;
-            span.style.cssText = `position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); white-space:nowrap; pointer-events:none; z-index:1; color:${fg};`;
+            span.style.cssText = `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;z-index:1;color:${fg};`;
             cell.appendChild(span);
           }
         } else {
@@ -482,7 +495,7 @@ class WeatherMosaicCard extends HTMLElement {
       });
     }
 
-    if (this._config.hours === 'below') _appendHoursRow();
+    if (this._config.hours === 'below') appendHoursRow();
   }
 }
 
@@ -520,17 +533,24 @@ class WeatherMosaicCardEditor extends HTMLElement {
       <style>
         .form { display: flex; flex-direction: column; gap: 16px; padding: 8px 0; }
         label { display: block; margin-bottom: 4px; font-size: 0.85rem; color: var(--secondary-text-color, #888); }
-        ha-entity-picker, select {
+        select {
           width: 100%;
           display: block;
-        }
-        select {
           padding: 8px;
           border: 1px solid var(--divider-color, #ccc);
           border-radius: 4px;
           background: var(--card-background-color, #fff);
           color: var(--primary-text-color, #000);
           font-size: 1rem;
+        }
+        .switch-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .switch-row span {
+          font-size: 1rem;
+          color: var(--primary-text-color, #000);
         }
       </style>
       <div class="form">
@@ -549,26 +569,17 @@ class WeatherMosaicCardEditor extends HTMLElement {
             <option value="C">Celsius (°C)</option>
           </select>
         </div>
-        <div>
-          <label>Current Temperature &amp; Conditions</label>
-          <select id="show_current">
-            <option value="true">Show</option>
-            <option value="false">Hide</option>
-          </select>
+        <div class="switch-row">
+          <span>Current Temperature &amp; Conditions</span>
+          <ha-switch id="show_current"></ha-switch>
         </div>
-        <div>
-          <label>Min/Max Temperatures</label>
-          <select id="show_minmax">
-            <option value="true">Show</option>
-            <option value="false">Hide</option>
-          </select>
+        <div class="switch-row">
+          <span>Min/Max Temperatures</span>
+          <ha-switch id="show_minmax"></ha-switch>
         </div>
-        <div>
-          <label>Precipitation Symbols</label>
-          <select id="show_precip">
-            <option value="true">Show</option>
-            <option value="false">Hide</option>
-          </select>
+        <div class="switch-row">
+          <span>Precipitation Symbols</span>
+          <ha-switch id="show_precip"></ha-switch>
         </div>
         <div>
           <label>Days to show</label>
@@ -583,9 +594,15 @@ class WeatherMosaicCardEditor extends HTMLElement {
     });
     this._populateEntitySelect();
 
-    ['entity', 'temperature_unit', 'show_current', 'show_minmax', 'show_precip', 'days'].forEach(id => {
+    ['entity', 'temperature_unit', 'days'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.value);
+      });
+    });
+
+    ['show_current', 'show_minmax', 'show_precip'].forEach(id => {
+      this.shadowRoot.getElementById(id).addEventListener('change', e => {
+        this._changed(id, e.target.checked);
       });
     });
   }
@@ -601,12 +618,17 @@ class WeatherMosaicCardEditor extends HTMLElement {
       const el = this.shadowRoot.getElementById(id);
       if (el) el.value = val || '';
     };
-    sel('entity', this._config.entity || '');
+    sel('entity',           this._config.entity || '');
     sel('temperature_unit', this._config.temperature_unit || 'F');
-    sel('show_current', this._config.show_current === false ? 'false' : 'true');
-    sel('show_minmax', this._config.show_minmax === false ? 'false' : 'true');
-    sel('show_precip', this._config.show_precip === false ? 'false' : 'true');
-    sel('days', this._config.days || '7');
+    sel('days',             this._config.days || '7');
+
+    const chk = (id, val) => {
+      const el = this.shadowRoot.getElementById(id);
+      if (el) el.checked = val;
+    };
+    chk('show_current', this._config.show_current !== false);
+    chk('show_minmax',  this._config.show_minmax  !== false);
+    chk('show_precip',  this._config.show_precip  !== false);
   }
 
   _changed(key, value) {
