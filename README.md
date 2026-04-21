@@ -72,6 +72,7 @@ These options are available in the card's visual editor:
 | `show_current` | boolean | `true` | Show current temperature and conditions in the header |
 | `show_minmax` | boolean | `true` | Show daily high and low temperature labels |
 | `show_precip` | boolean | `true` | Show precipitation symbols |
+| `color_scale` | `mosaic` \| `blue_red` \| `turbo` \| `viridis` \| `inferno` | `mosaic` | Color scale used to encode temperature |
 
 ### Advanced YAML Options
 
@@ -79,7 +80,6 @@ These options are not shown in the visual editor but can be set in YAML:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `color_scale` | `mosaic` \| `blue_red` \| `turbo` \| `viridis` \| `inferno` | `mosaic` | Color scale used to encode temperature |
 | `hours` | `above` \| `below` | *(hidden)* | Show hour labels above or below the grid |
 | `time_format` | `12` \| `24` | `24` | Format for hour labels (3a/6p vs 3/15) |
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |

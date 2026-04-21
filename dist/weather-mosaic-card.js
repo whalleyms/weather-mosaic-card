@@ -580,6 +580,16 @@ class WeatherMosaicCardEditor extends HTMLElement {
             <option value="C">Celsius (°C)</option>
           </select>
         </div>
+        <div>
+          <label>Color Scale</label>
+          <select id="color_scale">
+            <option value="mosaic">Mosaic</option>
+            <option value="blue_red">Blue → Red</option>
+            <option value="turbo">Turbo</option>
+            <option value="viridis">Viridis</option>
+            <option value="inferno">Inferno</option>
+          </select>
+        </div>
         <div class="switch-row">
           <span>Current Temperature &amp; Conditions</span>
           <ha-switch id="show_current"></ha-switch>
@@ -605,7 +615,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
     });
     this._populateEntitySelect();
 
-    ['entity', 'temperature_unit', 'days'].forEach(id => {
+    ['entity', 'temperature_unit', 'color_scale', 'days'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.value);
       });
@@ -631,6 +641,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
     };
     sel('entity',           this._config.entity || '');
     sel('temperature_unit', this._config.temperature_unit || 'F');
+    sel('color_scale',      this._config.color_scale || 'mosaic');
     sel('days',             this._config.days || '7');
 
     const chk = (id, val) => {
