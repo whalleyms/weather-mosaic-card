@@ -6,7 +6,7 @@
  *   1. Copy to /config/www/weather-mosaic-card.js
  *   2. Add Lovelace resource:
  *        url: /local/weather-mosaic-card.js
- *        type: module
+ *        type: moduleß
  *   3. Add card:
  *        type: custom:weather-mosaic-card
  *        entity: weather.home        # must provide hourly forecast
@@ -15,7 +15,6 @@
  * (PirateWeather, Open-Meteo, Met.no, etc.)
  */
 
-const _WMC_LOADED = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -52,6 +51,24 @@ const COLOR_SCALES = {
     [85,  [253, 132,  26]],
     [95,  [210,  50,  10]],
     [105, [122,   4,   3]],
+  ],
+  viridis: [
+    [10,  [ 68,   1,  84]],
+    [30,  [ 70,  50, 127]],
+    [50,  [ 38, 113, 147]],
+    [65,  [ 32, 152, 138]],
+    [75,  [ 80, 185, 112]],
+    [90,  [160, 218,  57]],
+    [105, [253, 231,  37]],
+  ],
+  inferno: [
+    [10,  [  0,   0,   4]],
+    [30,  [ 50,   9,  99]],
+    [50,  [133,  33, 107]],
+    [65,  [188,  64,  81]],
+    [75,  [220, 108,  38]],
+    [90,  [249, 185,  20]],
+    [105, [252, 255, 164]],
   ],
 };
 
@@ -280,13 +297,7 @@ class WeatherMosaicCard extends HTMLElement {
           flex-shrink: 0;
           text-align: right;
         }
-        .loaded-at {
-          font-size: 9px;
-          opacity: 0.6;
-          text-align: right;
-          padding: 2px 0 0 0;
-          color: var(--primary-text-color, #fff);
-        }
+
       </style>
       <ha-card>
         <div class="card-header">
@@ -294,7 +305,7 @@ class WeatherMosaicCard extends HTMLElement {
           <span id="card-current" class="card-current"></span>
         </div>
         <div class="grid-wrap"><div id="grid" class="mosaic-grid"></div></div>
-        <div class="loaded-at">js loaded ${_WMC_LOADED}</div>
+
       </ha-card>`;
 
     this._ro = new ResizeObserver(() => this._onResize());

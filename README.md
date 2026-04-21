@@ -79,7 +79,7 @@ These options are not shown in the visual editor but can be set in YAML:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `color_scale` | `mosaic` \| `blue_red` \| `turbo` | `mosaic` | Color scale used to encode temperature |
+| `color_scale` | `mosaic` \| `blue_red` \| `turbo` \| `viridis` \| `inferno` | `mosaic` | Color scale used to encode temperature |
 | `hours` | `above` \| `below` | *(hidden)* | Show hour labels above or below the grid |
 | `time_format` | `12` \| `24` | `24` | Format for hour labels (3a/6p vs 3/15) |
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
@@ -112,6 +112,8 @@ timezone: America/New_York
 | `mosaic` | Multi-color scale: blue → teal → green → yellow → orange → red |
 | `blue_red` | Clean diverging scale: blue (cold) → red (hot) |
 | `turbo` | Perceptually uniform: blue → green → yellow → red |
+| `viridis` | Colorblind-safe: dark purple → teal → green → yellow |
+| `inferno` | High contrast, dark theme-friendly: black → purple → red → orange → yellow |
 
 All scales are calibrated for temperatures in °F. When `temperature_unit: C` is set, displayed labels are converted but the color mapping remains °F-based — set your HA weather integration to report in °F for best results.
 
