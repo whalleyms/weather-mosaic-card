@@ -1,6 +1,5 @@
 {
   "name": "Weather Mosaic Card",
   "filename": "weather-mosaic-card.js",
-  "render_readme": true,
-  "content_directory": "dist"
+  "render_readme": true
 }
