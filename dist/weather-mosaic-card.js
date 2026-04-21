@@ -15,6 +15,8 @@
  * (PirateWeather, Open-Meteo, Met.no, etc.)
  */
 
+const _WMC_LOADED = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
 class WeatherMosaicCard extends HTMLElement {
 
   // -------------------------------------------------------------------------
@@ -25,6 +27,7 @@ class WeatherMosaicCard extends HTMLElement {
     this._hass = hass;
 
     if (!this.shadowRoot) { this._build(); this._updateTitle(); }
+    this._updateCurrent();
 
     // Subscribe to forecast on first hass assignment
     if (firstLoad && this._config) {
@@ -40,6 +43,7 @@ class WeatherMosaicCard extends HTMLElement {
     };
 
     this._updateTitle();
+    this._updateCurrent();
 
     if (this._hass && !this._unsubForecast) {
       this._subscribeForecast();
@@ -49,11 +53,47 @@ class WeatherMosaicCard extends HTMLElement {
   }
 
   _updateTitle() {
-    const card = this.shadowRoot?.querySelector('ha-card');
-    if (!card) return;
+    const el = this.shadowRoot?.getElementById('card-title');
+    if (!el) return;
     const title = this._config?.title
       ?? (this._config?.entity || '').replace(/^weather\./, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    title ? card.setAttribute('header', title) : card.removeAttribute('header');
+    el.textContent = title || '';
+    this._updateHeaderVisibility();
+  }
+
+  _updateCurrent() {
+    const el = this.shadowRoot?.getElementById('card-current');
+    if (!el) return;
+    if (this._config?.show_current === false) {
+      el.textContent = '';
+      this._updateHeaderVisibility();
+      return;
+    }
+    const state = this._hass?.states[this._config?.entity];
+    if (!state) { el.textContent = ''; this._updateHeaderVisibility(); return; }
+    const temp = state.attributes.temperature;
+    if (temp == null) { el.textContent = ''; this._updateHeaderVisibility(); return; }
+    const nativeUnit = state.attributes.temperature_unit || '°F';
+    const displayUnit = this._config?.temperature_unit || 'F';
+    const isNativeF = nativeUnit.includes('F');
+    const wantF = displayUnit === 'F';
+    let t = Math.round(temp);
+    if (isNativeF && !wantF) t = Math.round((temp - 32) * 5 / 9);
+    else if (!isNativeF && wantF) t = Math.round(temp * 9 / 5 + 32);
+    const conditionMap = { partlycloudy: 'Partly Cloudy', 'clear-night': 'Clear' };
+    const condition = conditionMap[state.state]
+      || (state.state || '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    el.textContent = `${t}°${displayUnit}  ${condition}`;
+    this._updateHeaderVisibility();
+  }
+
+  _updateHeaderVisibility() {
+    const header = this.shadowRoot?.querySelector('.card-header');
+    if (!header) return;
+    const titleEl   = this.shadowRoot.getElementById('card-title');
+    const currentEl = this.shadowRoot.getElementById('card-current');
+    const hasContent = (titleEl?.textContent || '') || (currentEl?.textContent || '');
+    header.style.display = hasContent ? '' : 'none';
   }
 
   connectedCallback() {
@@ -149,9 +189,12 @@ class WeatherMosaicCard extends HTMLElement {
           grid-template-columns: max-content repeat(24, minmax(0, 1fr));
           width: 100%;
         }
-        .day-label {
+        .card-header, .day-label, .hour-label, .cell {
           font-size: var(--cell-fs, 17px);
           font-weight: 500;
+        }
+        .day-label {
+          font-size: var(--label-fs, 14px);
           color: var(--primary-text-color, #ffffff);
           padding-right: 8px;
           white-space: nowrap;
@@ -160,25 +203,58 @@ class WeatherMosaicCard extends HTMLElement {
           height: var(--cell-h, 22px);
         }
         .hour-label {
-          font-size: var(--cell-fs, 17px);
+          font-size: var(--label-fs, 14px);
           color: var(--primary-text-color, #ffffff);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          position: relative;
           height: var(--cell-h, 22px);
-          white-space: nowrap;
           overflow: visible;
+        }
+        .hour-label span {
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          white-space: nowrap;
         }
         .cell {
           height: var(--cell-h, 22px);
-          font-size: var(--cell-fs, 20px);
-          font-weight: 550;
           position: relative;
           overflow: visible;
         }
+        .card-header {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          padding: 12px 0 8px 0;
+          gap: 8px;
+        }
+        .card-title {
+          color: var(--ha-card-header-color, var(--primary-text-color, #fff));
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .card-current {
+          color: var(--primary-text-color, #fff);
+          white-space: nowrap;
+          flex-shrink: 0;
+          text-align: right;
+        }
+        .loaded-at {
+          font-size: 9px;
+          opacity: 0.6;
+          text-align: right;
+          padding: 2px 0 0 0;
+          color: var(--primary-text-color, #fff);
+        }
       </style>
       <ha-card>
+        <div class="card-header">
+          <span id="card-title" class="card-title"></span>
+          <span id="card-current" class="card-current"></span>
+        </div>
         <div class="grid-wrap"><div id="grid" class="mosaic-grid"></div></div>
+        <div class="loaded-at">js loaded ${_WMC_LOADED}</div>
       </ha-card>`;
 
     this._ro = new ResizeObserver(() => this._onResize());
@@ -189,12 +265,15 @@ class WeatherMosaicCard extends HTMLElement {
     const w = this.offsetWidth;
     if (!w) return;
     this._narrow  = w < 320;
-    const cellW   = Math.max(8,  Math.floor((w - 28) / 26)); // 24 cells + ~2 for label
-    const cellH   = Math.max(12, Math.floor(cellW * 1.2));
-    const cellFs  = Math.max(8,  Math.floor(cellW * 0.94));
+    const scale   = parseFloat(this._config.font_scale) || 1.0;
+    const cellW   = Math.max(8,  Math.floor((w - 28) / 26));
+    const cellH   = Math.max(12, Math.floor(cellW * 1.2 * scale));
+    const cellFs  = Math.max(6,  Math.floor(cellW * 0.94 * scale));
+    const labelFs = Math.max(5,  Math.floor(cellFs * 0.8));
     const host    = this.shadowRoot.host;
     host.style.setProperty('--cell-h',  `${cellH}px`);
     host.style.setProperty('--cell-fs', `${cellFs}px`);
+    host.style.setProperty('--label-fs', `${labelFs}px`);
   }
 
   _showError(msg) {
@@ -306,6 +385,7 @@ class WeatherMosaicCard extends HTMLElement {
       grid[di][tzHour(dt)] = {
         temp: item.temperature,
         precip: item.precipitation_probability || 0,
+        condition: item.condition || '',
       };
     });
 
@@ -352,7 +432,11 @@ class WeatherMosaicCard extends HTMLElement {
       for (let h = 0; h < 24; h++) {
         const div = document.createElement('div');
         div.className = 'hour-label';
-        if ([3, 6, 9, 12, 15, 18, 21].includes(h)) div.textContent = this._formatHour(h);
+        if ([6, 12, 18].includes(h)) {
+          const span = document.createElement('span');
+          span.textContent = this._formatHour(h);
+          div.appendChild(span);
+        }
         mosaic.appendChild(div);
       }
     };
@@ -375,12 +459,12 @@ class WeatherMosaicCard extends HTMLElement {
           const { bg, fg } = this._tempToColor(e.temp);
           cell.style.background = bg;
           let label = '';
-          if (e.isHigh || e.isLow) {
+          if (this._config.show_minmax !== false && (e.isHigh || e.isLow)) {
             label = this._config.temperature_unit === 'C'
               ? Math.round((e.temp - 32) * 5 / 9)
               : Math.round(e.temp);
           } else if (this._config.show_precip !== false && e.precip >= 50) {
-            label = '/';
+            label = e.condition.includes('snow') ? '*' : '/';
           } else if (this._config.show_precip !== false && e.precip >= 10) {
             label = '-';
           }
@@ -455,10 +539,6 @@ class WeatherMosaicCardEditor extends HTMLElement {
           <input id="title" type="text" placeholder="Leave blank for no title" style="width:100%;padding:8px;border:1px solid var(--divider-color,#ccc);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color,#000);font-size:1rem;box-sizing:border-box;" />
         </div>
         <div>
-          <label>Timezone override (auto-detected from entity if blank)</label>
-          <input id="timezone" type="text" placeholder="America/New_York" style="width:100%;padding:8px;border:1px solid var(--divider-color,#ccc);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color,#000);font-size:1rem;box-sizing:border-box;" />
-        </div>
-        <div>
           <label>Weather Entity</label>
           <select id="entity"></select>
         </div>
@@ -470,26 +550,17 @@ class WeatherMosaicCardEditor extends HTMLElement {
           </select>
         </div>
         <div>
-          <label>Color Scale</label>
-          <select id="color_scale">
-            <option value="mosaic">Mosaic (default)</option>
-            <option value="blue_red">Blue → Red</option>
-            <option value="turbo">Turbo</option>
+          <label>Current Temperature &amp; Conditions</label>
+          <select id="show_current">
+            <option value="true">Show</option>
+            <option value="false">Hide</option>
           </select>
         </div>
         <div>
-          <label>Hour Labels</label>
-          <select id="hours">
-            <option value="">Hidden</option>
-            <option value="above">Above chart</option>
-            <option value="below">Below chart</option>
-          </select>
-        </div>
-        <div>
-          <label>Time Format</label>
-          <select id="time_format">
-            <option value="24">24-hour (3, 6, 9…)</option>
-            <option value="12">12-hour (3a, 6a, 9a…)</option>
+          <label>Min/Max Temperatures</label>
+          <select id="show_minmax">
+            <option value="true">Show</option>
+            <option value="false">Hide</option>
           </select>
         </div>
         <div>
@@ -510,13 +581,9 @@ class WeatherMosaicCardEditor extends HTMLElement {
     this.shadowRoot.getElementById('title').addEventListener('input', e => {
       this._changed('title', e.target.value);
     });
-    this.shadowRoot.getElementById('timezone').addEventListener('input', e => {
-      this._changed('timezone', e.target.value);
-    });
-
     this._populateEntitySelect();
 
-    ['entity', 'temperature_unit', 'color_scale', 'hours', 'time_format', 'show_precip', 'days'].forEach(id => {
+    ['entity', 'temperature_unit', 'show_current', 'show_minmax', 'show_precip', 'days'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.value);
       });
@@ -525,8 +592,6 @@ class WeatherMosaicCardEditor extends HTMLElement {
 
   _updateValues() {
     if (!this.shadowRoot) return;
-    const tzEl = this.shadowRoot.getElementById('timezone');
-    if (tzEl) tzEl.value = this._config.timezone || '';
     const titleEl = this.shadowRoot.getElementById('title');
     if (titleEl) {
       const derived = (this._config.entity || '').replace(/^weather\./, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -538,9 +603,8 @@ class WeatherMosaicCardEditor extends HTMLElement {
     };
     sel('entity', this._config.entity || '');
     sel('temperature_unit', this._config.temperature_unit || 'F');
-    sel('color_scale', this._config.color_scale || 'mosaic');
-    sel('hours', this._config.hours || '');
-    sel('time_format', this._config.time_format || '24');
+    sel('show_current', this._config.show_current === false ? 'false' : 'true');
+    sel('show_minmax', this._config.show_minmax === false ? 'false' : 'true');
     sel('show_precip', this._config.show_precip === false ? 'false' : 'true');
     sel('days', this._config.days || '7');
   }

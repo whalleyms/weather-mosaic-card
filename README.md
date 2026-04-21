@@ -45,32 +45,48 @@ type: custom:weather-mosaic-card
 entity: weather.your_weather_entity
 ```
 
-### Options
+### Visual Editor Options
+
+These options are available in the card's visual editor:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `entity` | string | `weather.pirateweather` | Weather entity ID (must provide hourly forecast) |
 | `title` | string | Derived from entity name | Card title. Set to empty string to hide. |
 | `temperature_unit` | `F` \| `C` | `F` | Unit for displayed temperature labels |
-| `color_scale` | `mosaic` \| `blue_red` \| `turbo` | `mosaic` | Color scale used to encode temperature |
 | `days` | 1–7 | `7` | Number of days to display |
+| `show_current` | boolean | `true` | Show current temperature and conditions in the header |
+| `show_minmax` | boolean | `true` | Show daily high and low temperature labels |
+| `show_precip` | boolean | `true` | Show precipitation symbols |
+
+### Advanced YAML Options
+
+These options are not shown in the visual editor but can be set in YAML:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `color_scale` | `mosaic` \| `blue_red` \| `turbo` | `mosaic` | Color scale used to encode temperature |
 | `hours` | `above` \| `below` | *(hidden)* | Show hour labels above or below the grid |
 | `time_format` | `12` \| `24` | `24` | Format for hour labels (3a/6p vs 3/15) |
-| `show_precip` | boolean | `true` | Show or hide precipitation symbols |
-| `timezone` | string | Auto-detected from entity | IANA timezone override (e.g. `America/New_York`) |
+| `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
+| `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
 
-### Example
+### Full Example
 
 ```yaml
 type: custom:weather-mosaic-card
 entity: weather.pirateweather
 title: My Weather
 temperature_unit: F
-color_scale: turbo
 days: 7
+show_current: true
+show_minmax: true
+show_precip: true
+color_scale: turbo
 hours: above
 time_format: 12
-show_precip: true
+font_scale: 1.0
+timezone: America/New_York
 ```
 
 ---
@@ -92,7 +108,8 @@ All scales are calibrated for temperatures in °F. When `temperature_unit: C` is
 | Symbol | Meaning |
 |--------|---------|
 | `-` | 10–49% chance of precipitation |
-| `/` | 50%+ chance of precipitation |
+| `/` | 50%+ chance of rain |
+| `*` | 50%+ chance of snow |
 
 Set `show_precip: false` to hide these markers.
 
