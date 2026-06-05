@@ -1,6 +1,8 @@
 # Weather Mosaic Card
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://home-assistant.io)](https://home-assistant.io)
+<a href="https://home-assistant.io">
+  <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store." back-to-source="true">
+</a>
 
 A custom [Home Assistant](https://www.home-assistant.io/) Lovelace card that displays a 7-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, letting you spot daily patterns, hot afternoons, cool nights, and rainy periods at a glance.
 
@@ -27,7 +29,9 @@ Each cell represents one hour of one day. Cell color encodes temperature using y
 
 ## Installation
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://home-assistant.io)](https://home-assistant.io)
+<a href="https://home-assistant.io">
+  <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store." back-to-source="true">
+</a>
 
 ### HACS (Recommended)
 
