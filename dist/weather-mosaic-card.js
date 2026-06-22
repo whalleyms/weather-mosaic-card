@@ -6,7 +6,7 @@
  *   1. Copy to /config/www/weather-mosaic-card.js
  *   2. Add Lovelace resource:
  *        url: /local/weather-mosaic-card.js
- *        type: moduleß
+ *        type: module
  *   3. Add card:
  *        type: custom:weather-mosaic-card
  *        entity: weather.home        # must provide hourly forecast
@@ -674,8 +674,8 @@ customElements.define('weather-mosaic-card-editor', WeatherMosaicCardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'custom:weather-mosaic-card',
-  name: 'WX Chart Card',
-  description: 'Hourly temperature color-mosaic grid for 7 days.',
+  name: 'Weather Mosaic Card',
+  description: 'Hourly temperature color-mosaic grid.',
   preview: false,
   documentationURL: 'https://github.com/whalleyms/weather-mosaic-card',
 });
