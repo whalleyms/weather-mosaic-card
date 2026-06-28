@@ -84,8 +84,9 @@ These options are available in the card's visual editor:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `entity` | string | `weather.pirateweather` | Weather entity ID (must provide hourly forecast) |
+| `temperature_entity` | string | _(unset)_ | Optional sensor that overrides the header's current temperature (e.g. a local/personal weather station). When set, a small house icon appears next to the reading. Leave unset to read the temperature from the weather entity. |
 | `title` | string | Derived from entity name | Card title. Set to empty string to hide. |
-| `temperature_unit` | `F` \| `C` | `F` | Unit for displayed temperature labels |
+| `temperature_unit` | `F` \| `C` \| `both` | `F` | Unit for displayed temperature labels. `both` shows `°F / °C` in the header and `F/C` (e.g. `92/33`) on high/low cells, rendered at the smaller label font so it fits. |
 | `days` | 1–7 | `7` | Number of days to display |
 | `show_current` | boolean | `true` | Show current temperature and conditions in the header |
 | `show_minmax` | boolean | `true` | Show daily high and low temperature labels |
@@ -119,7 +120,29 @@ hours: above
 time_format: 12
 font_scale: 1.0
 timezone: America/New_York
+# temperature_entity: sensor.outdoor_temperature   # optional local-sensor override
 ```
+
+---
+
+## Local Temperature Override
+
+By default the header's current temperature comes from the weather entity. If you
+have a more accurate local source — a personal weather station, an outdoor sensor,
+or a hyperlocal helper — point `temperature_entity` at it:
+
+```yaml
+type: custom:weather-mosaic-card
+entity: weather.home
+temperature_entity: sensor.outdoor_temperature
+```
+
+When the override is active, the header shows that sensor's reading followed by a
+small **house icon** (so it's clear the temperature is local), then the current
+condition from the weather entity. The sensor's own `unit_of_measurement` is
+respected, so a °C sensor is converted to match `temperature_unit`. The forecast
+grid is unaffected — it always uses the weather entity's hourly data. Leaving
+`temperature_entity` unset keeps the original behaviour.
 
 ---
 
@@ -133,7 +156,7 @@ timezone: America/New_York
 | `viridis` | Colorblind-safe: dark purple → teal → green → yellow |
 | `inferno` | High contrast, dark theme-friendly: black → purple → red → orange → yellow |
 
-All scales are calibrated for temperatures in °F. When `temperature_unit: C` is set, displayed labels are converted but the color mapping remains °F-based — set your HA weather integration to report in °F for best results.
+All scales are calibrated for temperatures in °F. When `temperature_unit: C` (or `both`) is set, displayed labels are converted but the color mapping remains °F-based — set your HA weather integration to report in °F for best results.
 
 ---
 

@@ -13,6 +13,11 @@
  *
  * Requires an integration that provides hourly forecast data
  * (PirateWeather, Open-Meteo, Met.no, etc.)
+ *
+ * Optional: set `temperature_entity` to a local temperature sensor to override
+ * the header's current temperature (e.g. a personal weather station). When set,
+ * a small house icon is shown next to the reading. When unset, the card behaves
+ * exactly as before and reads the temperature from the weather entity.
  */
 
 
@@ -121,28 +126,88 @@ class WeatherMosaicCard extends HTMLElement {
     const el = this.shadowRoot?.getElementById('card-current');
     if (!el) return;
 
-    let text = '';
+    el.textContent = '';
+
     if (this._config?.show_current !== false) {
-      const state = this._hass?.states[this._config?.entity];
-      const temp  = state?.attributes?.temperature;
-      if (state && temp != null) {
-        const nativeUnit  = state.attributes.temperature_unit || '°F';
-        const displayUnit = this._config?.temperature_unit || 'F';
-        const isNativeF   = nativeUnit.includes('F');
-        const wantF       = displayUnit === 'F';
-        let t = Math.round(temp);
-        if (isNativeF && !wantF) t = Math.round((temp - 32) * 5 / 9);
-        else if (!isNativeF && wantF) t = Math.round(temp * 9 / 5 + 32);
+      const weatherState = this._hass?.states[this._config?.entity];
+
+      // Temperature source: an optional local sensor override
+      // (`temperature_entity`), otherwise the weather entity's own temperature
+      // attribute. When unset, behaviour is identical to before this option
+      // existed. The condition text always comes from the weather entity.
+      let temp       = null;
+      let nativeUnit = '°F';
+      let overridden = false;
+      const overrideId = this._config?.temperature_entity;
+      if (overrideId) {
+        const ovState = this._hass?.states[overrideId];
+        const ovTemp  = ovState ? parseFloat(ovState.state) : NaN;
+        if (ovState && !Number.isNaN(ovTemp)) {
+          temp       = ovTemp;
+          // Honour the sensor's own unit so °C sensors convert correctly.
+          nativeUnit = ovState.attributes?.unit_of_measurement || '°F';
+          overridden = true;
+        }
+      }
+      if (temp == null && weatherState?.attributes?.temperature != null) {
+        temp       = weatherState.attributes.temperature;
+        nativeUnit = weatherState.attributes.temperature_unit || '°F';
+      }
+
+      if (temp != null) {
+        // Normalise to Fahrenheit first (forecast/color logic is °F based),
+        // then format for the selected unit: 'F', 'C', or 'both' (F / C).
+        const isNativeF = nativeUnit.includes('F');
+        const tempF = isNativeF ? temp : (temp * 9 / 5 + 32);
+        const fVal  = Math.round(tempF);
+        const cVal  = Math.round((tempF - 32) * 5 / 9);
+        const mode  = this._config?.temperature_unit || 'F';
+        const tempText = mode === 'C'    ? `${cVal}°C`
+                       : mode === 'both' ? `${fVal}°F / ${cVal}°C`
+                       :                   `${fVal}°F`;
+
         const conditionMap = { partlycloudy: 'Partly Cloudy', 'clear-night': 'Clear' };
-        const rawCondition = (state.state || '').toLowerCase();
-        const condition = rawCondition === 'unknown' ? ''
-          : conditionMap[state.state] || rawCondition.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        text = condition ? `${t}°${displayUnit}  ${condition}` : `${t}°${displayUnit}`;
+        const rawCondition = (weatherState?.state || '').toLowerCase();
+        const condition = (!weatherState || rawCondition === 'unknown' || rawCondition === 'unavailable') ? ''
+          : conditionMap[weatherState.state] || rawCondition.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+        const tempSpan = document.createElement('span');
+        tempSpan.textContent = tempText;
+        el.appendChild(tempSpan);
+
+        // Small house icon marks a temperature sourced from a local sensor.
+        if (overridden) el.appendChild(this._overrideIcon());
+
+        if (condition) {
+          const condSpan = document.createElement('span');
+          condSpan.textContent = condition;
+          condSpan.style.marginLeft = overridden ? '4px' : '8px';
+          el.appendChild(condSpan);
+        }
       }
     }
 
-    el.textContent = text;
     this._updateHeaderVisibility();
+  }
+
+  _overrideIcon() {
+    // Inline MDI "home" glyph shown only when `temperature_entity` overrides the
+    // current temperature, so users can tell the reading is from a local sensor
+    // rather than the weather provider. Uses `currentColor` so it inherits the
+    // header text color and works in any HA theme without extra dependencies.
+    const NS  = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('role', 'img');
+    svg.style.cssText = 'width:0.85em;height:0.85em;margin:0 4px;vertical-align:-0.06em;opacity:0.7;flex-shrink:0;';
+    const title = document.createElementNS(NS, 'title');
+    title.textContent = 'Current temperature from local sensor';
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('fill', 'currentColor');
+    path.setAttribute('d', 'M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z');
+    svg.appendChild(title);
+    svg.appendChild(path);
+    return svg;
   }
 
   _updateHeaderVisibility() {
@@ -365,6 +430,18 @@ class WeatherMosaicCard extends HTMLElement {
     return `${h - 12}p`;
   }
 
+  // Format a daily high/low cell label. Forecast temperatures are in °F.
+  // 'F' → "92", 'C' → "33", 'both' → "92/33".
+  _formatCellTemp(tempF) {
+    const f = Math.round(tempF);
+    const c = Math.round((tempF - 32) * 5 / 9);
+    switch (this._config.temperature_unit) {
+      case 'C':    return `${c}`;
+      case 'both': return `${f}/${c}`;
+      default:     return `${f}`;
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Render grid
   // -------------------------------------------------------------------------
@@ -484,10 +561,10 @@ class WeatherMosaicCard extends HTMLElement {
           cell.style.background = bg;
 
           let label = '';
+          let isTempLabel = false;
           if (this._config.show_minmax !== false && (e.isHigh || e.isLow)) {
-            label = this._config.temperature_unit === 'C'
-              ? Math.round((e.temp - 32) * 5 / 9)
-              : Math.round(e.temp);
+            label = this._formatCellTemp(e.temp);
+            isTempLabel = true;
           } else if (this._config.show_precip !== false && e.precip >= 50) {
             label = e.condition.includes('snow') ? '*' : '/';
           } else if (this._config.show_precip !== false && e.precip >= 10) {
@@ -497,7 +574,13 @@ class WeatherMosaicCard extends HTMLElement {
           if (label) {
             const span = document.createElement('span');
             span.textContent = label;
-            span.style.cssText = `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;z-index:1;color:${fg};`;
+            // In "both" mode the high/low reads as "92/33"; render it at 0.62×
+            // the cell font (via `em`, so it works regardless of the resize
+            // handler) so the wider text fits inside the cell.
+            const fontRule = (isTempLabel && this._config.temperature_unit === 'both')
+              ? 'font-size:0.62em;'
+              : '';
+            span.style.cssText = `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;z-index:1;color:${fg};${fontRule}`;
             cell.appendChild(span);
           }
         } else {
@@ -518,6 +601,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this._populateEntitySelect();
+    this._populateTempEntitySelect();
   }
 
   _populateEntitySelect() {
@@ -530,6 +614,22 @@ class WeatherMosaicCardEditor extends HTMLElement {
       .map(id => `<option value="${id}">${id}</option>`)
       .join('');
     sel.value = this._config?.entity || entities[0] || '';
+  }
+
+  _populateTempEntitySelect() {
+    const sel = this.shadowRoot?.getElementById('temperature_entity');
+    if (!sel || !this._hass) return;
+    const entities = Object.keys(this._hass.states)
+      .filter(id => id.startsWith('sensor.'))
+      .filter(id => {
+        const a = this._hass.states[id].attributes || {};
+        return a.device_class === 'temperature'
+          || (a.unit_of_measurement || '').includes('°');
+      })
+      .sort();
+    sel.innerHTML = `<option value="">None (use weather entity)</option>` +
+      entities.map(id => `<option value="${id}">${id}</option>`).join('');
+    sel.value = this._config?.temperature_entity || '';
   }
 
   setConfig(config) {
@@ -576,10 +676,15 @@ class WeatherMosaicCardEditor extends HTMLElement {
           <select id="entity"></select>
         </div>
         <div>
+          <label>Current Temp Override (optional)</label>
+          <select id="temperature_entity"></select>
+        </div>
+        <div>
           <label>Temperature Unit</label>
           <select id="temperature_unit">
             <option value="F">Fahrenheit (°F)</option>
             <option value="C">Celsius (°C)</option>
+            <option value="both">Both (°F / °C)</option>
           </select>
         </div>
         <div>
@@ -616,8 +721,9 @@ class WeatherMosaicCardEditor extends HTMLElement {
       this._changed('title', e.target.value);
     });
     this._populateEntitySelect();
+    this._populateTempEntitySelect();
 
-    ['entity', 'temperature_unit', 'color_scale', 'days'].forEach(id => {
+    ['entity', 'temperature_entity', 'temperature_unit', 'color_scale', 'days'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.value);
       });
@@ -642,6 +748,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
       if (el) el.value = val || '';
     };
     sel('entity',           this._config.entity || '');
+    sel('temperature_entity', this._config.temperature_entity || '');
     sel('temperature_unit', this._config.temperature_unit || 'F');
     sel('color_scale',      this._config.color_scale || 'mosaic');
     sel('days',             this._config.days || '7');
