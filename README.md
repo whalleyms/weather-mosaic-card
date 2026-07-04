@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo-banner.png" alt="Weather Mosaic" width="760">
+  <img src="https://raw.githubusercontent.com/whalleyms/weather-mosaic-card/main/assets/logo-banner.png" alt="Weather Mosaic" width="760">
 </p>
 
 <p align="center">
