@@ -92,7 +92,7 @@ These options are available in the card's visual editor:
 | `show_current` | boolean | `true` | Show current temperature and conditions in the header |
 | `show_minmax` | boolean | `true` | Show daily high and low temperature labels |
 | `show_precip` | boolean | `true` | Show precipitation symbols |
-| `color_scale` | `mosaic` \| `blue_red` \| `turbo` \| `viridis` \| `inferno` | `mosaic` | Color scale used to encode temperature |
+| `color_scale` | `mosaic` \| `blue_red` \| `turbo` \| `viridis` \| `inferno` \| `white_hot` \| `black_hot` | `mosaic` | Color scale used to encode temperature |
 
 ### Advanced YAML Options
 
@@ -134,6 +134,8 @@ timezone: America/New_York
 | `turbo` | Perceptually uniform: blue → green → yellow → red |
 | `viridis` | Colorblind-safe: dark purple → teal → green → yellow |
 | `inferno` | High contrast, dark theme-friendly: black → purple → red → orange → yellow |
+| `white_hot` | Thermal grayscale: coldest = black → hottest = white |
+| `black_hot` | Inverted thermal grayscale: coldest = white → hottest = black |
 
 All scales are calibrated for temperatures in °F. When `temperature_unit: C` is set, displayed labels are converted but the color mapping remains °F-based — set your HA weather integration to report in °F for best results.
 

@@ -70,6 +70,14 @@ const COLOR_SCALES = {
     [90,  [249, 185,  20]],
     [105, [252, 255, 164]],
   ],
+  white_hot: [
+    [10,  [  0,   0,   0]],
+    [105, [255, 255, 255]],
+  ],
+  black_hot: [
+    [10,  [255, 255, 255]],
+    [105, [  0,   0,   0]],
+  ],
 };
 
 class WeatherMosaicCard extends HTMLElement {
@@ -597,6 +605,8 @@ class WeatherMosaicCardEditor extends HTMLElement {
             <option value="turbo">Turbo</option>
             <option value="viridis">Viridis</option>
             <option value="inferno">Inferno</option>
+            <option value="white_hot">White-Hot</option>
+            <option value="black_hot">Black-Hot</option>
           </select>
         </div>
         <div class="switch-row">
