@@ -98,6 +98,10 @@ class WeatherMosaicCard extends HTMLElement {
       ...config,
     };
 
+    // Build the DOM immediately so the card renders even before `hass` is set
+    // (e.g. in the card picker / editor preview), instead of showing a spinner.
+    if (!this.shadowRoot) this._build();
+
     this._updateTitle();
     this._updateCurrent();
 
@@ -172,8 +176,11 @@ class WeatherMosaicCard extends HTMLElement {
     return { columns: 12, rows: 4, min_columns: 6, min_rows: 2 };
   }
 
-  static getStubConfig() {
-    return { entity: 'weather.home', temperature_unit: 'F' };
+  static getStubConfig(hass) {
+    const weatherEntity = hass
+      ? Object.keys(hass.states).find(id => id.startsWith('weather.'))
+      : undefined;
+    return { entity: weatherEntity || 'weather.home', temperature_unit: 'F' };
   }
 
   static getConfigElement() {

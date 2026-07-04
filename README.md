@@ -1,7 +1,7 @@
 # Weather Mosaic Card
 
-<a href="https://home-assistant.io">
-  <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store." back-to-source="true">
+<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=whalleyms&repository=weather-mosaic-card&category=plugin">
+  <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.">
 </a>
 
 A custom [Home Assistant](https://www.home-assistant.io/) Lovelace card that displays a 7-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, letting you spot daily patterns, hot afternoons, cool nights, and rainy periods at a glance.
@@ -29,18 +29,20 @@ Each cell represents one hour of one day. Cell color encodes temperature using y
 
 ## Installation
 
-<a href="https://home-assistant.io">
-  <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store." back-to-source="true">
+<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=whalleyms&repository=weather-mosaic-card&category=plugin">
+  <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.">
 </a>
 
 ### HACS (Recommended)
 
-1. Open HACS in Home Assistant
-2. Go to **Frontend**
-3. Click **Explore & Download Repositories**
-4. Search for **Weather Mosaic Card**
-5. Click **Download**
-6. Restart Home Assistant
+Weather Mosaic Card is in the default HACS store — no need to add it as a custom repository.
+
+1. Open **HACS** in Home Assistant
+2. Search for **Weather Mosaic Card**
+3. Open it and click **Download**
+4. Restart Home Assistant
+
+Or click the **Open in HACS** badge above to jump straight to it.
 
 ### Manual
 
