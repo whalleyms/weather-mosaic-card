@@ -8,6 +8,13 @@
   </a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/HACS-Default-41BDF5.svg" alt="HACS Default"></a>
+  <a href="https://github.com/whalleyms/weather-mosaic-card/releases"><img src="https://img.shields.io/github/v/release/whalleyms/weather-mosaic-card" alt="Latest release"></a>
+  <a href="https://github.com/whalleyms/weather-mosaic-card/actions/workflows/validate.yml"><img src="https://github.com/whalleyms/weather-mosaic-card/actions/workflows/validate.yml/badge.svg" alt="Validate"></a>
+  <a href="https://github.com/whalleyms/weather-mosaic-card/blob/main/LICENSE"><img src="https://img.shields.io/github/license/whalleyms/weather-mosaic-card" alt="License"></a>
+</p>
+
 A custom [Home Assistant](https://www.home-assistant.io/) Lovelace card that displays a 7-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, letting you spot daily patterns, hot afternoons, cool nights, and rainy periods at a glance.
 
 **[Preview →](https://whalleyms.github.io/weather-mosaic-card/)**
