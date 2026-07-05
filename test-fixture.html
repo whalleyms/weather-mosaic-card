@@ -72,7 +72,7 @@
     // -------------------------------------------------------------------------
     // Minimal mock hass object
     // -------------------------------------------------------------------------
-    function makeMockHass(entityId, currentCondition, attrs, forecastOpts) {
+    function makeMockHass(entityId, currentCondition, attrs, forecastOpts, extraStates) {
       const forecast = generateForecast(forecastOpts);
       return {
         states: {
@@ -80,6 +80,7 @@
             state: currentCondition,
             attributes: { temperature_unit: '°F', ...attrs },
           },
+          ...(extraStates || {}),
         },
         config: { latitude: attrs.latitude, longitude: attrs.longitude },
         connection: {
@@ -143,6 +144,18 @@
         { temperature: 68, latitude: 37.37, longitude: -122.04 },
         { baseTemp: 65, swing: 10, tzOffsetHours: -7,
           conditions: ['sunny','sunny','partlycloudy','cloudy','sunny','sunny','sunny'] })
+    );
+
+    // Local temperature override — weather entity says 62°F, local sensor says
+    // 70.4°F. Header should show 70°F followed by the weather condition.
+    addCard(
+      { entity: 'weather.sunnyvale', title: 'Local Temp Override',
+        temperature_entity: 'sensor.outdoor_temp', hours: 'above', time_format: '12' },
+      makeMockHass('weather.sunnyvale', 'partlycloudy',
+        { temperature: 62, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 60, swing: 12, tzOffsetHours: -7,
+          conditions: ['sunny','partlycloudy','cloudy','rainy','rainy','partlycloudy','sunny'] },
+        { 'sensor.outdoor_temp': { state: '70.4', attributes: { unit_of_measurement: '°F', device_class: 'temperature', friendly_name: 'Outdoor Temp' } } })
     );
   </script>
 </body>

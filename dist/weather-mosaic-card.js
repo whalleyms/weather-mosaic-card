@@ -143,10 +143,29 @@ class WeatherMosaicCard extends HTMLElement {
 
     let text = '';
     if (this._config?.show_current !== false) {
-      const state = this._hass?.states[this._config?.entity];
-      const temp  = state?.attributes?.temperature;
-      if (state && temp != null) {
-        const nativeUnit  = state.attributes.temperature_unit || '°F';
+      const weatherState = this._hass?.states[this._config?.entity];
+
+      // Temperature source: an optional local sensor (`temperature_entity`)
+      // overrides the header reading; otherwise use the weather entity's own
+      // temperature. Unset behaves exactly as before. The condition text always
+      // comes from the weather entity.
+      let temp = null;
+      let nativeUnit = '°F';
+      const overrideId = this._config?.temperature_entity;
+      if (overrideId) {
+        const ovState = this._hass?.states[overrideId];
+        const ovTemp  = ovState ? parseFloat(ovState.state) : NaN;
+        if (ovState && !Number.isNaN(ovTemp)) {
+          temp       = ovTemp;
+          nativeUnit = ovState.attributes?.unit_of_measurement || '°F';
+        }
+      }
+      if (temp == null && weatherState?.attributes?.temperature != null) {
+        temp       = weatherState.attributes.temperature;
+        nativeUnit = weatherState.attributes.temperature_unit || '°F';
+      }
+
+      if (temp != null) {
         const displayUnit = this._config?.temperature_unit || 'F';
         const isNativeF   = nativeUnit.includes('F');
         const wantF       = displayUnit === 'F';
@@ -154,9 +173,9 @@ class WeatherMosaicCard extends HTMLElement {
         if (isNativeF && !wantF) t = Math.round((temp - 32) * 5 / 9);
         else if (!isNativeF && wantF) t = Math.round(temp * 9 / 5 + 32);
         const conditionMap = { partlycloudy: 'Partly Cloudy', 'clear-night': 'Clear' };
-        const rawCondition = (state.state || '').toLowerCase();
-        const condition = rawCondition === 'unknown' ? ''
-          : conditionMap[state.state] || rawCondition.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const rawCondition = (weatherState?.state || '').toLowerCase();
+        const condition = (!weatherState || rawCondition === 'unknown' || rawCondition === 'unavailable') ? ''
+          : conditionMap[weatherState.state] || rawCondition.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         text = condition ? `${t}°${displayUnit}  ${condition}` : `${t}°${displayUnit}`;
       }
     }
@@ -541,6 +560,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this._populateEntitySelect();
+    this._populateTempEntitySelect();
   }
 
   _populateEntitySelect() {
@@ -553,6 +573,22 @@ class WeatherMosaicCardEditor extends HTMLElement {
       .map(id => `<option value="${id}">${id}</option>`)
       .join('');
     sel.value = this._config?.entity || entities[0] || '';
+  }
+
+  _populateTempEntitySelect() {
+    const sel = this.shadowRoot?.getElementById('temperature_entity');
+    if (!sel || !this._hass) return;
+    const entities = Object.keys(this._hass.states)
+      .filter(id => id.startsWith('sensor.'))
+      .filter(id => {
+        const a = this._hass.states[id].attributes || {};
+        return a.device_class === 'temperature'
+          || (a.unit_of_measurement || '').includes('°');
+      })
+      .sort();
+    sel.innerHTML = `<option value="">None (use weather entity)</option>` +
+      entities.map(id => `<option value="${id}">${id}</option>`).join('');
+    sel.value = this._config?.temperature_entity || '';
   }
 
   setConfig(config) {
@@ -599,6 +635,10 @@ class WeatherMosaicCardEditor extends HTMLElement {
           <select id="entity"></select>
         </div>
         <div>
+          <label>Current Temp Override (optional)</label>
+          <select id="temperature_entity"></select>
+        </div>
+        <div>
           <label>Temperature Unit</label>
           <select id="temperature_unit">
             <option value="F">Fahrenheit (°F)</option>
@@ -641,8 +681,9 @@ class WeatherMosaicCardEditor extends HTMLElement {
       this._changed('title', e.target.value);
     });
     this._populateEntitySelect();
+    this._populateTempEntitySelect();
 
-    ['entity', 'temperature_unit', 'color_scale', 'days'].forEach(id => {
+    ['entity', 'temperature_entity', 'temperature_unit', 'color_scale', 'days'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.value);
       });
@@ -667,6 +708,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
       if (el) el.value = val || '';
     };
     sel('entity',           this._config.entity || '');
+    sel('temperature_entity', this._config.temperature_entity || '');
     sel('temperature_unit', this._config.temperature_unit || 'F');
     sel('color_scale',      this._config.color_scale || 'mosaic');
     sel('days',             this._config.days || '7');

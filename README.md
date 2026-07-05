@@ -91,6 +91,7 @@ These options are available in the card's visual editor:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `entity` | string | `weather.pirateweather` | Weather entity ID (must provide hourly forecast) |
+| `temperature_entity` | string | _(unset)_ | Optional sensor that overrides the header's current temperature (e.g. a local/personal weather station). Leave unset to read the temperature from the weather entity. |
 | `title` | string | Derived from entity name | Card title. Set to empty string to hide. |
 | `temperature_unit` | `F` \| `C` | `F` | Unit for displayed temperature labels |
 | `days` | 1–7 | `7` | Number of days to display |
@@ -127,6 +128,20 @@ time_format: 12
 font_scale: 1.0
 timezone: America/New_York
 ```
+
+---
+
+## Local Temperature Override
+
+By default the header's current temperature comes from the weather entity. If you have a more accurate local source — a personal weather station, an outdoor sensor, or a hyperlocal helper — point `temperature_entity` at it:
+
+```yaml
+type: custom:weather-mosaic-card
+entity: weather.home
+temperature_entity: sensor.outdoor_temperature
+```
+
+The header then shows that sensor's reading, followed by the current condition from the weather entity. The sensor's own `unit_of_measurement` is respected, so a °C sensor is converted to match `temperature_unit`. The forecast grid is unaffected — it always uses the weather entity's hourly data. Leaving `temperature_entity` unset keeps the original behaviour.
 
 ---
 
