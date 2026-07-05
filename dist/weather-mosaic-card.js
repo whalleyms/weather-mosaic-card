@@ -740,7 +740,7 @@ customElements.define('weather-mosaic-card-editor', WeatherMosaicCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: 'custom:weather-mosaic-card',
+  type: 'weather-mosaic-card',
   name: 'Weather Mosaic Card',
   description: 'Hourly temperature color-mosaic grid.',
   preview: false,
