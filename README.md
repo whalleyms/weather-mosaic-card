@@ -110,6 +110,7 @@ These options are not shown in the visual editor but can be set in YAML:
 | `time_format` | `12` \| `24` | `12` | Format for hour labels (3a/6p vs 3/15) |
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
 | `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
+| `custom_color_scale` | list | _(unset)_ | Define your own temperature→color stops, overriding `color_scale`. See [Custom Color Scale](#custom-color-scale). |
 
 ### Full Example
 
@@ -158,6 +159,27 @@ The header then shows that sensor's reading, followed by the current condition f
 | `black_hot` | Inverted thermal grayscale: coldest = white → hottest = black |
 
 All scales are calibrated for temperatures in °F. When `temperature_unit: C` is set, displayed labels are converted but the color mapping remains °F-based — set your HA weather integration to report in °F for best results.
+
+---
+
+## Custom Color Scale
+
+Not happy with the built-in scales? Define your own with the advanced `custom_color_scale` option (YAML only — it isn't in the visual editor). It takes a list of `[temperature, color]` stops, and the card interpolates between them exactly like a built-in scale. Colors may be hex strings or `[r, g, b]` arrays:
+
+```yaml
+type: custom:weather-mosaic-card
+entity: weather.home
+custom_color_scale:
+  - [30, "#2b83ba"]        # hex
+  - [50, "#abdda4"]
+  - [70, "#ffffbf"]
+  - [90, [215, 25, 28]]    # or [r, g, b]
+```
+
+- You need at least **two** stops. Order doesn't matter — stops are sorted automatically.
+- Temperatures below your lowest stop take its color; above your highest, its color (no extrapolation).
+- When set, `custom_color_scale` **overrides** the named `color_scale`. If it's missing or malformed, the card silently falls back to `color_scale` (or `mosaic`).
+- Stops are matched against the same temperature values the built-in scales use, so define them in the unit your weather entity reports (°F for most US integrations).
 
 ---
 

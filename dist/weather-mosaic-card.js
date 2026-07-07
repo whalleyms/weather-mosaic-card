@@ -114,6 +114,10 @@ class WeatherMosaicCard extends HTMLElement {
       ...config,
     };
 
+    // Parse the optional custom color scale (advanced YAML). Invalid or missing
+    // input yields null, so _tempToColor falls back to the named color_scale.
+    this._customStops = this._parseCustomScale(this._config.custom_color_scale);
+
     // Build the DOM immediately so the card renders even before `hass` is set
     // (e.g. in the card picker / editor preview), instead of showing a spinner.
     if (!this.shadowRoot) this._build();
@@ -379,8 +383,40 @@ class WeatherMosaicCard extends HTMLElement {
   // -------------------------------------------------------------------------
   // Color scale: temperature (°F) → { bg, fg }
   // -------------------------------------------------------------------------
+  // Parse one color spec — [r,g,b] or "#rgb"/"#rrggbb" hex — to [r,g,b], or null.
+  _parseColor(c) {
+    if (Array.isArray(c) && c.length === 3 && c.every(Number.isFinite))
+      return c.map(n => Math.max(0, Math.min(255, Math.round(n))));
+    if (typeof c === 'string') {
+      let h = c.trim().replace(/^#/, '');
+      if (h.length === 3) h = h.split('').map(x => x + x).join('');
+      if (/^[0-9a-fA-F]{6}$/.test(h))
+        return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+    }
+    return null;
+  }
+
+  // Parse the optional `custom_color_scale` (advanced YAML) into ascending
+  // [temp, [r,g,b]] stops. Returns null unless at least two stops are valid,
+  // so callers can fall back to a built-in scale.
+  _parseCustomScale(raw) {
+    if (!Array.isArray(raw)) return null;
+    const stops = [];
+    for (const item of raw) {
+      if (!Array.isArray(item) || item.length < 2) continue;
+      const temp = parseFloat(item[0]);
+      const rgb  = this._parseColor(item[1]);
+      if (Number.isFinite(temp) && rgb) stops.push([temp, rgb]);
+    }
+    if (stops.length < 2) return null;
+    stops.sort((a, b) => a[0] - b[0]);   // interpolation loop needs ascending temps
+    return stops;
+  }
+
   _tempToColor(f) {
-    const stops = COLOR_SCALES[this._config.color_scale] ?? COLOR_SCALES.mosaic;
+    const stops = this._customStops
+      || COLOR_SCALES[this._config.color_scale]
+      || COLOR_SCALES.mosaic;
     let lo = stops[0], hi = stops[stops.length - 1];
     for (let i = 0; i < stops.length - 1; i++) {
       if (f >= stops[i][0] && f <= stops[i + 1][0]) {

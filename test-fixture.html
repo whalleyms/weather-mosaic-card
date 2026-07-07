@@ -157,6 +157,39 @@
           conditions: ['sunny','partlycloudy','cloudy','rainy','rainy','partlycloudy','sunny'] },
         { 'sensor.outdoor_temp': { state: '70.4', attributes: { unit_of_measurement: '°F', device_class: 'temperature', friendly_name: 'Outdoor Temp' } } })
     );
+
+    // Custom color scale (advanced YAML) — stops defined inline as [temp, color].
+    // Colors accept hex ("#rrggbb"/"#rgb") or [r,g,b]. This card should render with
+    // this diverging palette, NOT a built-in scale. Change a hex value and reload to
+    // confirm it's really using these stops.
+    addCard(
+      { entity: 'weather.pittsburgh', title: 'Custom Color Scale',
+        custom_color_scale: [
+          [20, '#313695'],
+          [40, '#4575b4'],
+          [55, '#ffffbf'],
+          [70, '#f46d43'],
+          [90, [165, 0, 38]],        // rgb-array form also accepted
+        ],
+        hours: 'above', time_format: '12' },
+      makeMockHass('weather.pittsburgh', 'partlycloudy',
+        { temperature: 48, latitude: 40.44, longitude: -79.98, timezone: 'America/New_York' },
+        { baseTemp: 50, swing: 22, tzOffsetHours: -4,
+          conditions: ['sunny','partlycloudy','cloudy','rainy','partlycloudy','sunny','sunny'] })
+    );
+
+    // Invalid custom scale (only one valid stop) — must FALL BACK to the named
+    // color_scale (turbo here), not crash or render blank.
+    addCard(
+      { entity: 'weather.sunnyvale', title: 'Custom Fallback → turbo',
+        color_scale: 'turbo',
+        custom_color_scale: [ [50, 'not-a-color'] ],
+        hours: 'above', time_format: '12' },
+      makeMockHass('weather.sunnyvale', 'sunny',
+        { temperature: 66, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 64, swing: 12, tzOffsetHours: -7,
+          conditions: ['sunny','sunny','partlycloudy','cloudy','sunny','sunny','sunny'] })
+    );
   </script>
 </body>
 </html>
