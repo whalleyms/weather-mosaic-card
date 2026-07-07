@@ -458,6 +458,13 @@ class WeatherMosaicCard extends HTMLElement {
       || this._hass?.states[this._config.entity]?.attributes?.timezone
       || null;
 
+    // Forecast temps are in the weather entity's native unit. The scales and the
+    // label/color logic downstream all expect °F, so normalize to °F here based on
+    // the entity's own `temperature_unit`. (Fixes issue #3: a °C-native integration
+    // like Meteo.LT was being treated as °F → negative numbers + all-cold colors.)
+    const nativeIsF = (this._hass?.states[this._config.entity]
+      ?.attributes?.temperature_unit || '°F').includes('F');
+
     // Cache formatters — Intl.DateTimeFormat is expensive to construct
     const fmtHour = tz
       ? new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' })
@@ -486,7 +493,9 @@ class WeatherMosaicCard extends HTMLElement {
       if (di === undefined) return;
       if (!grid[di]) grid[di] = {};
       grid[di][tzHour(dt)] = {
-        temp:      item.temperature,
+        temp:      (item.temperature == null || nativeIsF)
+                     ? item.temperature
+                     : item.temperature * 9 / 5 + 32,
         precip:    item.precipitation_probability || 0,
         condition: item.condition || '',
       };

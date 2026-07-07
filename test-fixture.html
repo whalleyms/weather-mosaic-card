@@ -190,6 +190,20 @@
         { baseTemp: 64, swing: 12, tzOffsetHours: -7,
           conditions: ['sunny','sunny','partlycloudy','cloudy','sunny','sunny','sunny'] })
     );
+
+    // Metric (°C) forecast — regression test for issue #3 (Meteo.LT, Lithuania).
+    // The weather entity is native °C and the card is set to temperature_unit: C.
+    // BEFORE the fix: the grid wrongly applied an °F→°C conversion, showing negative
+    // numbers (~ -8 to -12) in an all-blue/cold palette. AFTER the fix: it shows the
+    // real ~10–20°C values with temperate (green/yellow) colors, matching the header.
+    addCard(
+      { entity: 'weather.vilnius', title: 'Metric °C — issue #3', temperature_unit: 'C',
+        hours: 'above', time_format: '24' },
+      makeMockHass('weather.vilnius', 'cloudy',
+        { temperature: 15.8, temperature_unit: '°C', latitude: 54.69, longitude: 25.28, timezone: 'Europe/Vilnius' },
+        { baseTemp: 15, swing: 6, tzOffsetHours: 3,
+          conditions: ['cloudy','rainy','partlycloudy','cloudy','rainy','partlycloudy','sunny'] })
+    );
   </script>
 </body>
 </html>
