@@ -118,6 +118,10 @@ class WeatherMosaicCard extends HTMLElement {
     // input yields null, so _tempToColor falls back to the named color_scale.
     this._customStops = this._parseCustomScale(this._config.custom_color_scale);
 
+    // Parse the optional custom precipitation-symbol rules (advanced YAML).
+    // Null → _precipSymbol uses the built-in default (- / *).
+    this._precipRules = this._parsePrecipRules(this._config.precipitation_symbols);
+
     // Build the DOM immediately so the card renders even before `hass` is set
     // (e.g. in the card picker / editor preview), instead of showing a spinner.
     if (!this.shadowRoot) this._build();
@@ -413,6 +417,44 @@ class WeatherMosaicCard extends HTMLElement {
     return stops;
   }
 
+  // Parse the optional `precipitation_symbols` (advanced YAML) into an ordered
+  // list of rules. Each rule needs a `symbol` and may gate on precipitation
+  // probability (`min_probability`, %) and/or `condition` (a substring of the
+  // weather state, e.g. "snow"). Returns null if nothing valid, so the built-in
+  // default is used.
+  _parsePrecipRules(raw) {
+    if (!Array.isArray(raw)) return null;
+    const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+    const rules = [];
+    for (const item of raw) {
+      if (!item || typeof item !== 'object' || typeof item.symbol !== 'string' || item.symbol === '') continue;
+      rules.push({
+        symbol:    item.symbol,
+        minProb:   num(item.min_probability),
+        condition: typeof item.condition === 'string' ? item.condition.toLowerCase() : null,
+      });
+    }
+    return rules.length ? rules : null;
+  }
+
+  // Pick the precipitation symbol for a cell. Uses custom rules (first match
+  // wins) when configured, otherwise the built-in default.
+  _precipSymbol(e) {
+    if (this._precipRules) {
+      const cond = (e.condition || '').toLowerCase();
+      for (const r of this._precipRules) {
+        if (r.minProb !== null && e.precip < r.minProb) continue;
+        if (r.condition && !cond.includes(r.condition)) continue;
+        return r.symbol;
+      }
+      return '';
+    }
+    // Built-in default
+    if (e.precip >= 50) return (e.condition || '').includes('snow') ? '*' : '/';
+    if (e.precip >= 10) return '-';
+    return '';
+  }
+
   _tempToColor(f) {
     const stops = this._customStops
       || COLOR_SCALES[this._config.color_scale]
@@ -575,10 +617,8 @@ class WeatherMosaicCard extends HTMLElement {
             label = this._config.temperature_unit === 'C'
               ? Math.round((e.temp - 32) * 5 / 9)
               : Math.round(e.temp);
-          } else if (this._config.show_precip !== false && e.precip >= 50) {
-            label = e.condition.includes('snow') ? '*' : '/';
-          } else if (this._config.show_precip !== false && e.precip >= 10) {
-            label = '-';
+          } else if (this._config.show_precip !== false) {
+            label = this._precipSymbol(e);
           }
 
           if (label) {

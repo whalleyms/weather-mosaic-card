@@ -204,6 +204,23 @@
         { baseTemp: 15, swing: 6, tzOffsetHours: 3,
           conditions: ['cloudy','rainy','partlycloudy','cloudy','rainy','partlycloudy','sunny'] })
     );
+
+    // Custom precipitation symbols (advanced YAML) — user-defined probability
+    // levels, no temperature. Three bands: 70%+ "#", 40–69% "=", 15–39% ".".
+    // The mock maps conditions to probabilities (snow 75, rain 65, cloudy 25,
+    // sunny 5), so all three tiers appear across the week.
+    addCard(
+      { entity: 'weather.pittsburgh', title: 'Custom Precip Symbols', hours: 'above', time_format: '12',
+        precipitation_symbols: [
+          { symbol: '#', min_probability: 70 },
+          { symbol: '=', min_probability: 40 },
+          { symbol: '.', min_probability: 15 },
+        ] },
+      makeMockHass('weather.pittsburgh', 'rainy',
+        { temperature: 40, latitude: 40.44, longitude: -79.98, timezone: 'America/New_York' },
+        { baseTemp: 42, swing: 14, tzOffsetHours: -4,
+          conditions: ['snowy','rainy','cloudy','sunny','rainy','snowy','cloudy'] })
+    );
   </script>
 </body>
 </html>

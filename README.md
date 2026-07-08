@@ -111,6 +111,7 @@ These options are not shown in the visual editor but can be set in YAML:
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
 | `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
 | `custom_color_scale` | list | _(unset)_ | Define your own temperature→color stops, overriding `color_scale`. See [Custom Color Scale](#custom-color-scale). |
+| `precipitation_symbols` | list | _(unset)_ | Define your own precipitation markers and the conditions they appear under. See [Custom Precipitation Symbols](#custom-precipitation-symbols). |
 
 ### Full Example
 
@@ -192,6 +193,45 @@ custom_color_scale:
 | `*` | 50%+ chance of snow |
 
 Set `show_precip: false` to hide these markers.
+
+### Custom Precipitation Symbols
+
+The markers above are the default. To choose your own symbols and your own probability levels, use the advanced `precipitation_symbols` option (YAML only, not in the visual editor). It's an ordered list of rules; for each cell the card walks the list top to bottom and uses the **first rule that matches**. A cell that matches nothing shows no marker.
+
+This example reproduces the exact default behavior — a good starting point to copy and tweak:
+
+```yaml
+precipitation_symbols:
+  - symbol: "*"          # 50%+ chance and snowing
+    condition: snow
+    min_probability: 50
+  - symbol: "/"          # 50%+ chance (rain)
+    min_probability: 50
+  - symbol: "-"          # 10–49% chance
+    min_probability: 10
+```
+
+Each rule needs a `symbol`; the other fields are optional gates (a rule matches only when **all** of its gates pass):
+
+| Field | Meaning |
+|-------|---------|
+| `symbol` | The text to show in the cell (required). |
+| `min_probability` | Minimum precipitation probability, in percent. Omit to match any probability. |
+| `condition` | Matches only when the weather entity's state contains this text (e.g. `snow`, `rain`). Omit to ignore the condition. |
+
+Since rules are matched top to bottom, list your higher-probability levels first. Set your own thresholds and symbols — for example, three probability bands with no rain/snow split:
+
+```yaml
+precipitation_symbols:
+  - symbol: "#"          # 70%+ chance
+    min_probability: 70
+  - symbol: "="          # 40–69%
+    min_probability: 40
+  - symbol: "."          # 15–39%
+    min_probability: 15
+```
+
+Leave `precipitation_symbols` unset to keep the default markers. `show_precip: false` still hides everything.
 
 ---
 
