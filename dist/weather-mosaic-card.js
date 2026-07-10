@@ -861,6 +861,6 @@ window.customCards.push({
   type: 'weather-mosaic-card',
   name: 'Weather Mosaic Card',
   description: 'Hourly temperature color-mosaic grid.',
-  preview: false,
+  preview: true,
   documentationURL: 'https://github.com/whalleyms/weather-mosaic-card',
 });
