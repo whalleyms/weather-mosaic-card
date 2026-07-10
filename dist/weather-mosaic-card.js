@@ -100,8 +100,18 @@ class WeatherMosaicCard extends HTMLElement {
     if (!this.shadowRoot) { this._build(); this._updateTitle(); }
     this._updateCurrent();
 
-    if (firstLoad && this._config) {
-      this._subscribeForecast();
+    if (this._config) {
+      // Subscribe on first load; also (re)subscribe once the weather entity
+      // becomes available if we still have no forecast. This recovers from the
+      // HA-restart race: the integration isn't loaded when the card first
+      // subscribes, so the initial subscribe fails; without this, the card
+      // stays stuck on a "no forecast" error until the kiosk is refreshed.
+      const st    = hass?.states?.[this._config.entity];
+      const ready = !!st && st.state !== 'unavailable' && st.state !== 'unknown';
+      if (firstLoad ||
+          (ready && !this._haveForecast && !this._unsubForecast && !this._subscribing)) {
+        this._subscribeForecast();
+      }
     }
   }
 
@@ -230,6 +240,8 @@ class WeatherMosaicCard extends HTMLElement {
   // Forecast subscription (HA 2023.9+) with legacy attribute fallback
   // -------------------------------------------------------------------------
   async _subscribeForecast() {
+    if (this._subscribing) return;
+    this._subscribing = true;
     this._unsubscribeForecast();
 
     try {
@@ -247,6 +259,8 @@ class WeatherMosaicCard extends HTMLElement {
         'falling back to legacy attribute.', err
       );
       this._fallbackToAttribute();
+    } finally {
+      this._subscribing = false;
     }
   }
 
@@ -263,11 +277,25 @@ class WeatherMosaicCard extends HTMLElement {
     if (forecast?.length > 0) {
       this._render(forecast);
     } else {
-      this._showError(
-        `No forecast data for "${this._config.entity}". ` +
-        `Check the entity exists and provides hourly forecasts.`
-      );
+      // No forecast yet — usually transient (the weather integration is still
+      // loading right after an HA restart). Don't show a terminal error now;
+      // `set hass` re-subscribes once the entity is ready. Only surface the
+      // error if data never arrives within the grace period.
+      this._scheduleDeferredError();
     }
+  }
+
+  _scheduleDeferredError() {
+    if (this._errorTimer || this._haveForecast) return;
+    this._errorTimer = setTimeout(() => {
+      this._errorTimer = null;
+      if (!this._haveForecast) {
+        this._showError(
+          `No forecast data for "${this._config.entity}". ` +
+          `Check the entity exists and provides hourly forecasts.`
+        );
+      }
+    }, 15000);
   }
 
   // -------------------------------------------------------------------------
@@ -447,6 +475,11 @@ class WeatherMosaicCard extends HTMLElement {
   // Render grid
   // -------------------------------------------------------------------------
   _render(forecast) {
+    // Ignore empty pushes (e.g. the integration still loading after a restart).
+    // Keeping the last good grid beats blanking it or showing an error.
+    if (!Array.isArray(forecast) || forecast.length === 0) return;
+    this._haveForecast = true;
+    if (this._errorTimer) { clearTimeout(this._errorTimer); this._errorTimer = null; }
     this._lastForecast = forecast;
 
     const DAYS = Math.min(7, Math.max(1, parseInt(this._config.days) || 7));
