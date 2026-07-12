@@ -116,6 +116,16 @@ class WeatherMosaicCard extends HTMLElement {
   }
 
   setConfig(config) {
+    // Validate an explicitly-provided entity so a mistake (wrong domain, typo,
+    // empty value) surfaces as a proper HA config-error card. Omitting `entity`
+    // still falls back to a default, which keeps the card-picker preview working.
+    if (config && typeof config === 'object' && 'entity' in config) {
+      const e = config.entity;
+      if (typeof e !== 'string' || !e.startsWith('weather.')) {
+        throw new Error('weather-mosaic-card: "entity" must be a weather entity, e.g. weather.home');
+      }
+    }
+
     this._config = {
       entity: 'weather.pirateweather',
       temperature_unit: 'F',
