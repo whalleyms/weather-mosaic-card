@@ -4,7 +4,7 @@
  *
  * Installation:
  *   1. Copy to /config/www/weather-mosaic-card.js
- *   2. Add Lovelace resource:
+ *   2. Add dashboard resource:
  *        url: /local/weather-mosaic-card.js
  *        type: module
  *   3. Add card:
