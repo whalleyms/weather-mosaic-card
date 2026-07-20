@@ -101,17 +101,22 @@ class WeatherMosaicCard extends HTMLElement {
     this._updateCurrent();
 
     if (this._config) {
-      // Subscribe on first load; also (re)subscribe once the weather entity
-      // becomes available if we still have no forecast. This recovers from the
-      // HA-restart race: the integration isn't loaded when the card first
-      // subscribes, so the initial subscribe fails; without this, the card
-      // stays stuck on a "no forecast" error until the kiosk is refreshed.
+      // (Re)subscribe on first load, or whenever the weather entity transitions
+      // from unavailable/absent to available. That single condition covers two
+      // failure modes: the HA-restart race (the integration isn't loaded when
+      // the card first subscribes, so the initial subscribe fails) AND a stale
+      // subscription left behind after a socket reconnect (the server's
+      // auto-resubscribe can drop while the integration reloads, stranding the
+      // card on old data). Either way the card would otherwise sit on a stale
+      // grid / "no forecast" error until the kiosk is refreshed.
+      // `_subscribeForecast` drops any existing subscription first, so a genuine
+      // recovery can't stack duplicate subscriptions.
       const st    = hass?.states?.[this._config.entity];
       const ready = !!st && st.state !== 'unavailable' && st.state !== 'unknown';
-      if (firstLoad ||
-          (ready && !this._haveForecast && !this._unsubForecast && !this._subscribing)) {
+      if ((firstLoad || (ready && !this._prevReady)) && !this._subscribing) {
         this._subscribeForecast();
       }
+      this._prevReady = ready;
     }
   }
 
@@ -148,6 +153,16 @@ class WeatherMosaicCard extends HTMLElement {
 
     this._updateTitle();
     this._updateCurrent();
+
+    // If the editor changed the entity in place, drop the old subscription and
+    // stale data so we resubscribe to the NEW entity instead of re-rendering the
+    // previous entity's forecast.
+    if (this._subscribedEntity && this._subscribedEntity !== this._config.entity) {
+      this._unsubscribeForecast();
+      this._haveForecast = false;
+      this._lastForecast = null;
+      if (this._errorTimer) { clearTimeout(this._errorTimer); this._errorTimer = null; }
+    }
 
     if (this._hass && !this._unsubForecast) {
       this._subscribeForecast();
@@ -208,6 +223,10 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
+    // `set hass` fires this on every state update (many per minute on a busy
+    // instance). Skip the DOM write when the header text is unchanged so an
+    // e-ink/kiosk display isn't repainted needlessly.
+    if (el.textContent === text) return;
     el.textContent = text;
     this._updateHeaderVisibility();
   }
@@ -223,6 +242,12 @@ class WeatherMosaicCard extends HTMLElement {
   }
 
   connectedCallback() {
+    // disconnectedCallback tears the ResizeObserver down; recreate it if the
+    // card is moved/re-attached in the DOM (e.g. dashboard layout edits).
+    if (!this._ro && this.shadowRoot) {
+      this._ro = new ResizeObserver(() => this._onResize());
+      this._ro.observe(this);
+    }
     if (this._hass && this._config && !this._unsubForecast) {
       this._subscribeForecast();
     }
@@ -230,6 +255,7 @@ class WeatherMosaicCard extends HTMLElement {
 
   disconnectedCallback() {
     this._unsubscribeForecast();
+    if (this._errorTimer) { clearTimeout(this._errorTimer); this._errorTimer = null; }
     if (this._ro) { this._ro.disconnect(); this._ro = null; }
   }
 
@@ -257,9 +283,10 @@ class WeatherMosaicCard extends HTMLElement {
     if (this._subscribing) return;
     this._subscribing = true;
     this._unsubscribeForecast();
+    this._subscribedEntity = this._config.entity;
 
     try {
-      this._unsubForecast = await this._hass.connection.subscribeMessage(
+      const unsub = await this._hass.connection.subscribeMessage(
         (event) => this._render(event.forecast ?? []),
         {
           type: 'weather/subscribe_forecast',
@@ -267,6 +294,14 @@ class WeatherMosaicCard extends HTMLElement {
           entity_id: this._config.entity,
         }
       );
+      // The card may have been detached (view switch, layout edit) while the
+      // subscribe was in flight. If so, cancel immediately instead of leaking a
+      // live subscription onto a dead element.
+      if (!this.isConnected) {
+        unsub();
+      } else {
+        this._unsubForecast = unsub;
+      }
     } catch (err) {
       console.warn(
         'weather-mosaic-card: WebSocket forecast subscription failed, ' +
@@ -280,7 +315,9 @@ class WeatherMosaicCard extends HTMLElement {
 
   _unsubscribeForecast() {
     if (this._unsubForecast) {
-      this._unsubForecast();
+      // The socket may already be closing (HA restart / reconnect); don't let a
+      // throw from the unsub callback bubble out of a lifecycle handler.
+      try { this._unsubForecast(); } catch (e) { /* already gone */ }
       this._unsubForecast = null;
     }
   }
@@ -419,7 +456,16 @@ class WeatherMosaicCard extends HTMLElement {
 
   _showError(msg) {
     const el = this.shadowRoot?.getElementById('grid');
-    if (el) el.innerHTML = `<div class="error" style="grid-column:1/-1">${msg}</div>`;
+    if (!el) return;
+    // Build via textContent, not innerHTML: `msg` interpolates the configured
+    // entity id, so an entity string containing markup would otherwise inject
+    // into the shadow DOM.
+    el.textContent = '';
+    const div = document.createElement('div');
+    div.className = 'error';
+    div.style.gridColumn = '1/-1';
+    div.textContent = msg;
+    el.appendChild(div);
   }
 
   // -------------------------------------------------------------------------
@@ -503,7 +549,10 @@ class WeatherMosaicCard extends HTMLElement {
         lo = stops[i]; hi = stops[i + 1]; break;
       }
     }
-    const t    = Math.max(0, Math.min(1, (f - lo[0]) / (hi[0] - lo[0])));
+    // Guard against two custom_color_scale stops at the same temperature, which
+    // would make the span zero and yield NaN (→ a transparent, unstyled cell).
+    const span = hi[0] - lo[0];
+    const t    = span === 0 ? 0 : Math.max(0, Math.min(1, (f - lo[0]) / span));
     const lerp = (a, b) => Math.round(a + (b - a) * t);
     const r    = lerp(lo[1][0], hi[1][0]);
     const g    = lerp(lo[1][1], hi[1][1]);
