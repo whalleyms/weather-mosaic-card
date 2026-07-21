@@ -945,6 +945,18 @@ class WeatherMosaicCardEditor extends HTMLElement {
           font-size: 1rem;
           color: var(--primary-text-color, #000);
         }
+        .docs {
+          border-top: 1px solid var(--divider-color, #ccc);
+          padding-top: 12px;
+          font-size: 0.8rem;
+          line-height: 1.5;
+          color: var(--secondary-text-color, #888);
+        }
+        .docs a {
+          color: var(--primary-color, #03a9f4);
+          text-decoration: none;
+        }
+        .docs a:hover { text-decoration: underline; }
       </style>
       <div class="form">
         <div>
@@ -1002,6 +1014,12 @@ class WeatherMosaicCardEditor extends HTMLElement {
           <select id="days">
             ${[1,2,3,4,5,6,7].map(d => `<option value="${d}">${d}</option>`).join('')}
           </select>
+        </div>
+        <div class="docs">
+          Further options — custom color scales, your own precipitation symbols,
+          hour-label placement, timezone and font size — are available in YAML.
+          <a href="https://github.com/whalleyms/weather-mosaic-card#advanced-yaml-options"
+             target="_blank" rel="noopener noreferrer">Advanced options &amp; documentation ↗</a>
         </div>
       </div>`;
 
