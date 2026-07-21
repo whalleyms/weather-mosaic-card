@@ -95,6 +95,7 @@ These options are available in the card's visual editor:
 | `temperature_entity` | string | _(unset)_ | Optional sensor that overrides the header's current temperature (e.g. a local/personal weather station). Leave unset to read the temperature from the weather entity. |
 | `title` | string | Derived from entity name | Card title. Set to empty string to hide. |
 | `temperature_unit` | `F` \| `C` | `F` | Unit for displayed temperature labels |
+| `layout` | `grid` \| `spiral` | `grid` | `grid` draws one row per day. `spiral` wraps each day into a full 360° turn, winding inward into the future. See [Spiral Layout](#spiral-layout). |
 | `days` | 1–7 | `7` | Number of days to display |
 | `show_current` | boolean | `true` | Show current temperature and conditions in the header |
 | `show_minmax` | boolean | `true` | Show daily high and low temperature labels |
@@ -145,6 +146,28 @@ temperature_entity: sensor.outdoor_temperature
 ```
 
 The header then shows that sensor's reading, followed by the current condition from the weather entity. The sensor's own `unit_of_measurement` is respected, so a °C sensor is converted to match `temperature_unit`. The forecast grid is unaffected — it always uses the weather entity's hourly data. Leaving `temperature_entity` unset keeps the original behaviour.
+
+---
+
+## Spiral Layout
+
+The same forecast, wrapped into a spiral instead of a grid:
+
+```yaml
+type: custom:weather-mosaic-card
+entity: weather.home
+layout: spiral
+```
+
+<img src="https://raw.githubusercontent.com/whalleyms/weather-mosaic-card/main/assets/weather_mosaic_spiral.png" alt="Weather Mosaic Card - spiral layout" width="520">
+
+Each full turn is one 24-hour day. Because a turn is exactly 24 hours, every hour always falls at the same angle — **midnight sits at 12 o'clock** on every ring — so the same hour on successive days lines up radially. Those radial lines are the polar equivalent of the grid's columns, and the cells stay edge to edge with no gaps, exactly like the grid.
+
+The spiral winds **inward into the future**: today is the outermost turn, and each following day is a slightly thinner band than the one before it. Combined with the natural loss of circumference toward the center, days further out occupy steadily less area — a deliberate cue that the forecast grows less certain the further ahead you look.
+
+Day names sit on each ring at the midnight seam, and the hours are labelled around the outside. Everything else works exactly as it does in the grid — color scales, `custom_color_scale`, precipitation symbols, min/max labels, `days`, and `font_scale` all apply unchanged.
+
+> **Sizing:** the spiral is square, so give the card more height than the grid needs. In a sections dashboard it defaults to a taller footprint; in a masonry dashboard it will simply be a tall card.
 
 ---
 

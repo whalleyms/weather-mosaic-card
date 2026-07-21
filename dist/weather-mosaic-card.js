@@ -134,6 +134,7 @@ class WeatherMosaicCard extends HTMLElement {
     this._config = {
       entity: 'weather.pirateweather',
       temperature_unit: 'F',
+      layout: 'grid',
       hours: 'above',
       time_format: '12',
       ...config,
@@ -259,10 +260,13 @@ class WeatherMosaicCard extends HTMLElement {
     if (this._ro) { this._ro.disconnect(); this._ro = null; }
   }
 
-  getCardSize() { return 4; }
+  // The spiral is square, so it needs far more vertical room than the wide grid.
+  getCardSize() { return this._config?.layout === 'spiral' ? 9 : 4; }
 
   getGridOptions() {
-    return { columns: 12, rows: 4, min_columns: 6, min_rows: 2 };
+    return this._config?.layout === 'spiral'
+      ? { columns: 12, rows: 9, min_columns: 6, min_rows: 4 }
+      : { columns: 12, rows: 4, min_columns: 6, min_rows: 2 };
   }
 
   static getStubConfig(hass) {
@@ -368,6 +372,12 @@ class WeatherMosaicCard extends HTMLElement {
           padding: 12px 0;
         }
         .grid-wrap { overflow: hidden; }
+        .spiral-wrap { width: 100%; padding-top: 4px; }
+        .spiral-wrap svg { width: 100%; height: auto; display: block; }
+        .spiral-label {
+          fill: var(--primary-text-color, #ffffff);
+          font-weight: 500;
+        }
         .mosaic-grid {
           display: grid;
           grid-template-columns: max-content repeat(24, minmax(0, 1fr));
@@ -670,7 +680,16 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
+    if (this._config.layout === 'spiral') this._paintSpiral(grid, dayLabels, DAYS);
+    else this._paintGrid(grid, dayLabels, DAYS);
+  }
+
+  // -------------------------------------------------------------------------
+  // Paint: rectangular grid (default) — one row per day, one column per hour
+  // -------------------------------------------------------------------------
+  _paintGrid(grid, dayLabels, DAYS) {
     const mosaic = this.shadowRoot.getElementById('grid');
+    mosaic.className = 'mosaic-grid';
     mosaic.innerHTML = '';
 
     const appendHoursRow = () => {
@@ -728,6 +747,127 @@ class WeatherMosaicCard extends HTMLElement {
     }
 
     if (this._config.hours === 'below') appendHoursRow();
+  }
+
+  // -------------------------------------------------------------------------
+  // Paint: spiral — one 360° wrap per day, winding inward into the future
+  // -------------------------------------------------------------------------
+  // Because one turn is exactly 24 hours, a given hour always lands at the same
+  // angle on every day (midnight at 12 o'clock), so the same hour on successive
+  // days lines up radially — the polar equivalent of the grid's columns.
+  //
+  // Each cell is bounded by the spiral at day-position p and by the SAME spiral
+  // one full turn later (p + 1). That makes a cell's inner edge identical to the
+  // next day's outer edge, so the surface is continuous with no gaps, exactly
+  // like the grid. Band thickness tapers inward (GAMMA > 1) on top of the
+  // natural loss of circumference, so days further out in the forecast occupy
+  // steadily less area — a visual cue that they're less certain.
+  _paintSpiral(grid, dayLabels, DAYS) {
+    const SIZE  = 1000;                 // viewBox units; the SVG scales to fit
+    const cx    = SIZE / 2, cy = SIZE / 2;
+    const R_OUT = SIZE * 0.44;          // leaves a margin for the hour labels
+    const R_IN  = R_OUT * 0.18;         // centre hole where the spiral ends
+    const GAMMA = 1.3;
+    const TURNS = DAYS + 1;             // the last day's inner edge is one turn on
+    const STEPS = 6;                    // polyline segments per hour cell
+    const scale = parseFloat(this._config.font_scale) || 1.0;
+
+    // Radius at day-position p (0 = today's midnight, outermost).
+    const radius = (p) => R_IN + (R_OUT - R_IN) * Math.pow(1 - p / TURNS, GAMMA);
+    // hf = fraction through the day; 0 is midnight at 12 o'clock, clockwise.
+    const xy = (r, hf) => {
+      const a = hf * 2 * Math.PI;
+      return [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+    };
+    const ps  = (r, hf) => xy(r, hf).map(n => n.toFixed(1)).join(',');
+    const esc = (s) => String(s).replace(/[&<>"]/g,
+      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    const cells = [], labels = [];
+
+    for (let d = 0; d < DAYS; d++) {
+      for (let h = 0; h < 24; h++) {
+        const h0 = h / 24, h1 = (h + 1) / 24;
+
+        const outer = [], inner = [];
+        for (let i = 0; i <= STEPS; i++) {
+          const hf = h0 + (h1 - h0) * (i / STEPS);
+          outer.push(ps(radius(d + hf), hf));
+          inner.push(ps(radius(d + 1 + hf), hf));
+        }
+
+        const e = grid[d]?.[h];
+        const { bg, fg } = e
+          ? this._tempToColor(e.temp)
+          : { bg: 'rgba(128,128,128,0.08)', fg: '' };
+
+        // Stroking each cell in its own fill colour hides the hairline seams
+        // antialiasing would otherwise leave between neighbouring paths.
+        cells.push(
+          `<path d="M${outer.join('L')}L${inner.reverse().join('L')}Z" ` +
+          `fill="${bg}" stroke="${bg}" stroke-width="1"/>`
+        );
+
+        if (!e) continue;
+
+        const hfMid  = (h0 + h1) / 2;
+        const rOut   = radius(d + hfMid);
+        const rIn    = radius(d + 1 + hfMid);
+        const thick  = rOut - rIn;
+        const [tx, ty] = xy((rOut + rIn) / 2, hfMid);
+
+        // The day name occupies the midnight cell of its own ring, so skip that
+        // cell's own marker rather than stacking text on text.
+        const isDaySlot = h === 0 && !!dayLabels[d];
+        if (isDaySlot) {
+          // Type is sized off band thickness, but with a floor: the inner rings
+          // are thin enough that pure proportional scaling goes unreadable. The
+          // text may spill sideways into neighbouring hours, which is harmless —
+          // only the band's thickness actually constrains it.
+          const dayFs = Math.max(thick * 0.52, SIZE * 0.021) * scale;
+          labels.push(
+            `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
+            `font-size="${dayFs.toFixed(1)}" text-anchor="middle" ` +
+            `dominant-baseline="central">${esc(dayLabels[d])}</text>`
+          );
+          continue;
+        }
+
+        let label = '';
+        if (this._config.show_minmax !== false && (e.isHigh || e.isLow)) {
+          label = this._config.temperature_unit === 'C'
+            ? Math.round((e.temp - 32) * 5 / 9)
+            : Math.round(e.temp);
+        } else if (this._config.show_precip !== false) {
+          label = this._precipSymbol(e);
+        }
+        if (label === '' || label === null || label === undefined) continue;
+
+        const cellFs = Math.max(thick * 0.44, SIZE * 0.018) * scale;
+        labels.push(
+          `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
+          `font-size="${cellFs.toFixed(1)}" text-anchor="middle" ` +
+          `dominant-baseline="central">${esc(label)}</text>`
+        );
+      }
+    }
+
+    // Hour labels ring the outside, each sitting on its hour's leading edge —
+    // the same convention the grid uses for its column labels.
+    const hourFs = (SIZE * 0.028 * scale).toFixed(1);
+    const hours  = [0, 6, 12, 18].map(h => {
+      const [hx, hy] = xy(R_OUT + SIZE * 0.032, h / 24);
+      return `<text x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" class="spiral-label" ` +
+             `font-size="${hourFs}" text-anchor="middle" ` +
+             `dominant-baseline="central">${esc(this._formatHour(h))}</text>`;
+    });
+
+    const mosaic = this.shadowRoot.getElementById('grid');
+    mosaic.className = 'spiral-wrap';
+    mosaic.innerHTML =
+      `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg" ` +
+      `shape-rendering="geometricPrecision">${cells.join('')}${labels.join('')}` +
+      `${hours.join('')}</svg>`;
   }
 }
 
@@ -823,6 +963,13 @@ class WeatherMosaicCardEditor extends HTMLElement {
           </select>
         </div>
         <div>
+          <label>Layout</label>
+          <select id="layout">
+            <option value="grid">Grid (one row per day)</option>
+            <option value="spiral">Spiral (one turn per day)</option>
+          </select>
+        </div>
+        <div>
           <label>Color Scale</label>
           <select id="color_scale">
             <option value="mosaic">Mosaic</option>
@@ -860,7 +1007,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
     this._populateEntitySelect();
     this._populateTempEntitySelect();
 
-    ['entity', 'temperature_entity', 'temperature_unit', 'color_scale', 'days'].forEach(id => {
+    ['entity', 'temperature_entity', 'temperature_unit', 'layout', 'color_scale', 'days'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.value);
       });
@@ -887,6 +1034,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
     sel('entity',           this._config.entity || '');
     sel('temperature_entity', this._config.temperature_entity || '');
     sel('temperature_unit', this._config.temperature_unit || 'F');
+    sel('layout',           this._config.layout || 'grid');
     sel('color_scale',      this._config.color_scale || 'mosaic');
     sel('days',             this._config.days || '7');
 

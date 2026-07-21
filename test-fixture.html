@@ -205,6 +205,38 @@
           conditions: ['cloudy','rainy','partlycloudy','cloudy','rainy','partlycloudy','sunny'] })
     );
 
+    // Spiral layout — each 360° turn is one 24 h day, winding inward into the
+    // future. Midnight sits at 12 o'clock on every ring, so the same hour lines
+    // up radially across days. Bands taper inward = less certainty.
+    addCard(
+      { entity: 'weather.sunnyvale', title: 'Spiral — 7 days',
+        layout: 'spiral', hours: 'above', time_format: '12' },
+      makeMockHass('weather.sunnyvale', 'cloudy',
+        { temperature: 62, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 60, swing: 12, tzOffsetHours: -7,
+          conditions: ['sunny','partlycloudy','cloudy','rainy','rainy','partlycloudy','sunny'] })
+    );
+
+    // Spiral, colder + snow, 24 h clock — checks precip symbols and the taper.
+    addCard(
+      { entity: 'weather.pittsburgh', title: 'Spiral — Pittsburgh',
+        layout: 'spiral', color_scale: 'blue_red', time_format: '24' },
+      makeMockHass('weather.pittsburgh', 'snowy',
+        { temperature: 31, latitude: 40.44, longitude: -79.98, timezone: 'America/New_York' },
+        { baseTemp: 38, swing: 16, tzOffsetHours: -4,
+          conditions: ['snowy','snowy-rainy','cloudy','rainy','partlycloudy','sunny','sunny'] })
+    );
+
+    // Spiral with fewer days — geometry must adapt to days: 4.
+    addCard(
+      { entity: 'weather.sunnyvale', title: 'Spiral — 4 days',
+        layout: 'spiral', days: 4, color_scale: 'turbo' },
+      makeMockHass('weather.sunnyvale', 'sunny',
+        { temperature: 68, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 65, swing: 14, tzOffsetHours: -7,
+          conditions: ['sunny','partlycloudy','rainy','cloudy','sunny','sunny','sunny'] })
+    );
+
     // Custom precipitation symbols (advanced YAML) — user-defined probability
     // levels, no temperature. Three bands: 70%+ "#", 40–69% "=", 15–39% ".".
     // The mock maps conditions to probabilities (snow 75, rain 65, cloudy 25,
