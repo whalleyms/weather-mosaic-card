@@ -765,7 +765,11 @@ class WeatherMosaicCard extends HTMLElement {
   _paintSpiral(grid, dayLabels, DAYS) {
     const SIZE  = 1000;                 // viewBox units; the SVG scales to fit
     const cx    = SIZE / 2, cy = SIZE / 2;
-    const R_OUT = SIZE * 0.44;          // leaves a margin for the hour labels
+    // `above`/`below` have no meaning on a circle — the labels always ring the
+    // outside — but `none` hides them, as it does in the grid. With no labels to
+    // make room for, the spiral grows to fill the space they would have used.
+    const showHours = this._config.hours !== 'none' && this._config.hours !== false;
+    const R_OUT = SIZE * (showHours ? 0.44 : 0.485);
     const R_IN  = R_OUT * 0.18;         // centre hole where the spiral ends
     const GAMMA = 1.3;
     const TURNS = DAYS + 1;             // the last day's inner edge is one turn on
@@ -855,7 +859,7 @@ class WeatherMosaicCard extends HTMLElement {
     // Hour labels ring the outside, each sitting on its hour's leading edge —
     // the same convention the grid uses for its column labels.
     const hourFs = (SIZE * 0.028 * scale).toFixed(1);
-    const hours  = [0, 6, 12, 18].map(h => {
+    const hours  = !showHours ? [] : [0, 6, 12, 18].map(h => {
       const [hx, hy] = xy(R_OUT + SIZE * 0.032, h / 24);
       return `<text x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" class="spiral-label" ` +
              `font-size="${hourFs}" text-anchor="middle" ` +

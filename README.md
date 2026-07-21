@@ -108,7 +108,7 @@ These options are not shown in the visual editor but can be set in YAML:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `hours` | `above` \| `below` | `above` | Show hour labels above or below the grid |
+| `hours` | `above` \| `below` \| `none` | `above` | Hour labels: above the grid, below it, or `none` to hide them entirely. In the spiral layout the labels always ring the outside, so `above` and `below` behave identically there and `none` hides them. |
 | `time_format` | `12` \| `24` | `12` | Format for hour labels (3a/6p vs 3/15) |
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
 | `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
