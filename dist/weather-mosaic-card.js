@@ -842,12 +842,12 @@ class WeatherMosaicCard extends HTMLElement {
           // text may spill sideways into neighbouring hours, which is harmless —
           // only the band's thickness actually constrains it.
           const dayFs = Math.max(thick * 0.52, SIZE * 0.021) * scale;
-          // Left-justify every day name to a common x just right of the midnight
-          // seam, so their left edges line up as a vertical list rather than
-          // drifting inward with the shrinking radius.
+          // Centre every day name on the vertical axis, so the column lines up
+          // under the "24" hour label at the top rather than drifting inward
+          // with the shrinking radius.
           labels.push(
-            `<text x="${(cx + SIZE * 0.01).toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
-            `font-size="${dayFs.toFixed(1)}" font-weight="700" text-anchor="start" ` +
+            `<text x="${cx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
+            `font-size="${dayFs.toFixed(1)}" font-weight="700" text-anchor="middle" ` +
             `dominant-baseline="central">${esc((dayLabels[d] || '').slice(0, 2))}</text>`
           );
           continue;
