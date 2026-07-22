@@ -112,6 +112,7 @@ These options are not shown in the visual editor but can be set in YAML:
 | `time_format` | `12` \| `24` | `12` | Format for hour labels (3a/6p vs 3/15) |
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
 | `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
+| `spiral_gap` | number | `1` | _(Spiral layout only)_ Thickness of the gap between spiral turns, as a multiple of the default. `0` removes it (turns abut into a solid disk); `2` doubles it. |
 | `custom_color_scale` | list | _(unset)_ | Define your own temperature→color stops, overriding `color_scale`. See [Custom Color Scale](#custom-color-scale). |
 | `precipitation_symbols` | list | _(unset)_ | Define your own precipitation markers and the conditions they appear under. See [Custom Precipitation Symbols](#custom-precipitation-symbols). |
 

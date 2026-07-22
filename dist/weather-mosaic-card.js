@@ -773,7 +773,11 @@ class WeatherMosaicCard extends HTMLElement {
     const R_IN  = R_OUT * 0.18;         // centre hole where the spiral ends
     const GAMMA = 1.3;
     const STEPS = 6;                    // polyline segments per hour cell
-    const WRAP_GAP = SIZE * 0.0025;     // thin background ring between turns
+    // Radial gap between turns, as a multiple of the default: `spiral_gap: 0`
+    // removes it (turns abut into a solid disk), 2 doubles it. Invalid or
+    // absent falls back to the default.
+    const gapMult  = parseFloat(this._config.spiral_gap);
+    const WRAP_GAP = SIZE * 0.0025 * (Number.isFinite(gapMult) ? Math.max(0, gapMult) : 1);
     const scale = parseFloat(this._config.font_scale) || 1.0;
 
     // `p` is day-position (0 = today's midnight). Its distance from now is
