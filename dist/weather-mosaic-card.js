@@ -844,7 +844,7 @@ class WeatherMosaicCard extends HTMLElement {
           labels.push(
             `<text x="${(cx + SIZE * 0.01).toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
             `font-size="${dayFs.toFixed(1)}" font-weight="700" text-anchor="start" ` +
-            `dominant-baseline="central">${esc(dayLabels[d])}</text>`
+            `dominant-baseline="central">${esc((dayLabels[d] || '').slice(0, 2))}</text>`
           );
           continue;
         }
