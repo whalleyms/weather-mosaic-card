@@ -769,7 +769,7 @@ class WeatherMosaicCard extends HTMLElement {
     // outside — but `none` hides them, as it does in the grid. With no labels to
     // make room for, the spiral grows to fill the space they would have used.
     const showHours = this._config.hours !== 'none' && this._config.hours !== false;
-    const R_OUT = SIZE * (showHours ? 0.455 : 0.485);
+    const R_OUT = SIZE * (showHours ? 0.44 : 0.485);
     const R_IN  = R_OUT * 0.18;         // centre hole where the spiral ends
     const GAMMA = 1.3;
     const STEPS = 6;                    // polyline segments per hour cell
@@ -883,7 +883,7 @@ class WeatherMosaicCard extends HTMLElement {
     // whole way around and steps at the "now" seam with the spiral itself.
     const hourFs = (SIZE * 0.023 * scale).toFixed(1);
     const hours  = !showHours ? [] : [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map(h => {
-      const [hx, hy] = xy(radius(outerPos(h / 24)) + SIZE * 0.016, h / 24);
+      const [hx, hy] = xy(radius(outerPos(h / 24)) + SIZE * 0.032, h / 24);
       return `<text x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" class="spiral-label" ` +
              `font-size="${hourFs}" text-anchor="middle" ` +
              `dominant-baseline="central">${h === 0 ? 24 : h}</text>`;
