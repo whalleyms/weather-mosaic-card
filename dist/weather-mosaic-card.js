@@ -859,7 +859,7 @@ class WeatherMosaicCard extends HTMLElement {
           : Math.max(thick * 0.44, SIZE * 0.018)) * scale;
         labels.push(
           `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
-          `font-size="${cellFs.toFixed(1)}" text-anchor="middle" ` +
+          `font-size="${cellFs.toFixed(1)}" font-weight="700" text-anchor="middle" ` +
           `dominant-baseline="central">${esc(label)}</text>`
         );
       }
