@@ -680,7 +680,7 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
-    if (this._config.layout === 'spiral') this._paintSpiral(grid, dayLabels, DAYS);
+    if (this._config.layout === 'spiral') this._paintSpiral(grid, dayLabels, DAYS, nowHour);
     else this._paintGrid(grid, dayLabels, DAYS);
   }
 
@@ -756,13 +756,13 @@ class WeatherMosaicCard extends HTMLElement {
   // angle on every day (midnight at 12 o'clock), so the same hour on successive
   // days lines up radially — the polar equivalent of the grid's columns.
   //
-  // Each cell is bounded by the spiral at day-position p and by the SAME spiral
-  // one full turn later (p + 1). That makes a cell's inner edge identical to the
-  // next day's outer edge, so the surface is continuous with no gaps, exactly
-  // like the grid. Band thickness tapers inward (GAMMA > 1) on top of the
-  // natural loss of circumference, so days further out in the forecast occupy
-  // steadily less area — a visual cue that they're less certain.
-  _paintSpiral(grid, dayLabels, DAYS) {
+  // The spiral starts at *now*: the outer edge is anchored to the current hour,
+  // and today's already-elapsed hours are not drawn, so no radius is wasted on
+  // an empty outer ring. It then winds inward over the remaining forecast. Band
+  // thickness tapers inward (GAMMA > 1) on top of the natural loss of
+  // circumference, so days further ahead occupy steadily less area — a visual
+  // cue that they're less certain.
+  _paintSpiral(grid, dayLabels, DAYS, nowHour) {
     const SIZE  = 1000;                 // viewBox units; the SVG scales to fit
     const cx    = SIZE / 2, cy = SIZE / 2;
     // `above`/`below` have no meaning on a circle — the labels always ring the
@@ -772,12 +772,18 @@ class WeatherMosaicCard extends HTMLElement {
     const R_OUT = SIZE * (showHours ? 0.455 : 0.485);
     const R_IN  = R_OUT * 0.18;         // centre hole where the spiral ends
     const GAMMA = 1.3;
-    const TURNS = DAYS + 1;             // the last day's inner edge is one turn on
     const STEPS = 6;                    // polyline segments per hour cell
     const scale = parseFloat(this._config.font_scale) || 1.0;
 
-    // Radius at day-position p (0 = today's midnight, outermost).
-    const radius = (p) => R_IN + (R_OUT - R_IN) * Math.pow(1 - p / TURNS, GAMMA);
+    // `p` is day-position (0 = today's midnight). Its distance from now is
+    // p - nowTurn; radius shrinks from R_OUT at now over the remaining forecast
+    // span, plus one turn of headroom so the innermost ring clears the centre.
+    const nowTurn  = nowHour / 24;
+    const SPAN     = (DAYS - nowTurn) + 1;
+    const radius   = (p) => R_IN + (R_OUT - R_IN) * Math.pow(1 - (p - nowTurn) / SPAN, GAMMA);
+    // Day-position of the outermost (nearest-now) ring present at angle hf — the
+    // smallest whole-day offset from hf that isn't already in the past.
+    const outerPos = (hf) => Math.max(0, Math.ceil(nowTurn - hf)) + hf;
     // hf = fraction through the day; 0 is midnight at 12 o'clock, clockwise.
     const xy = (r, hf) => {
       const a = hf * 2 * Math.PI;
@@ -791,6 +797,9 @@ class WeatherMosaicCard extends HTMLElement {
 
     for (let d = 0; d < DAYS; d++) {
       for (let h = 0; h < 24; h++) {
+        // The spiral begins at now — drop hours that have entirely elapsed so
+        // today's past hours don't consume an empty outer ring.
+        if (d * 24 + h + 1 <= nowHour) continue;
         const h0 = h / 24, h1 = (h + 1) / 24;
 
         const outer = [], inner = [];
@@ -869,13 +878,12 @@ class WeatherMosaicCard extends HTMLElement {
     // midnight (labelled 24) at the top, running clockwise. This ring is
     // spiral-only — the grid keeps its sparse above/below hour labels — and it
     // ignores `time_format`, since a round clock reads naturally in 24h.
-    // Each label follows the spiral's own outer edge at its hour angle
-    // (radius(h/24)), not a fixed circle — the outermost band winds inward from
-    // the top, so a constant radius would only touch the rim at hour 24 and gap
-    // out everywhere else.
+    // Each label follows the spiral's own outer edge at its hour angle — the
+    // outermost ring present there — not a fixed circle, so it hugs the rim the
+    // whole way around and steps at the "now" seam with the spiral itself.
     const hourFs = (SIZE * 0.023 * scale).toFixed(1);
     const hours  = !showHours ? [] : [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map(h => {
-      const [hx, hy] = xy(radius(h / 24) + SIZE * 0.016, h / 24);
+      const [hx, hy] = xy(radius(outerPos(h / 24)) + SIZE * 0.016, h / 24);
       return `<text x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" class="spiral-label" ` +
              `font-size="${hourFs}" text-anchor="middle" ` +
              `dominant-baseline="central">${h === 0 ? 24 : h}</text>`;
