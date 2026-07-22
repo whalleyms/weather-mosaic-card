@@ -869,9 +869,13 @@ class WeatherMosaicCard extends HTMLElement {
     // midnight (labelled 24) at the top, running clockwise. This ring is
     // spiral-only — the grid keeps its sparse above/below hour labels — and it
     // ignores `time_format`, since a round clock reads naturally in 24h.
+    // Each label follows the spiral's own outer edge at its hour angle
+    // (radius(h/24)), not a fixed circle — the outermost band winds inward from
+    // the top, so a constant radius would only touch the rim at hour 24 and gap
+    // out everywhere else.
     const hourFs = (SIZE * 0.023 * scale).toFixed(1);
     const hours  = !showHours ? [] : [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map(h => {
-      const [hx, hy] = xy(R_OUT + SIZE * 0.013, h / 24);
+      const [hx, hy] = xy(radius(h / 24) + SIZE * 0.016, h / 24);
       return `<text x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" class="spiral-label" ` +
              `font-size="${hourFs}" text-anchor="middle" ` +
              `dominant-baseline="central">${h === 0 ? 24 : h}</text>`;
