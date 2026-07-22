@@ -829,25 +829,34 @@ class WeatherMosaicCard extends HTMLElement {
           // text may spill sideways into neighbouring hours, which is harmless —
           // only the band's thickness actually constrains it.
           const dayFs = Math.max(thick * 0.52, SIZE * 0.021) * scale;
+          // Left-justify every day name to a common x just right of the midnight
+          // seam, so their left edges line up as a vertical list rather than
+          // drifting inward with the shrinking radius.
           labels.push(
-            `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
-            `font-size="${dayFs.toFixed(1)}" text-anchor="middle" ` +
+            `<text x="${(cx + SIZE * 0.01).toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
+            `font-size="${dayFs.toFixed(1)}" text-anchor="start" ` +
             `dominant-baseline="central">${esc(dayLabels[d])}</text>`
           );
           continue;
         }
 
         let label = '';
+        let isPrecip = false;
         if (this._config.show_minmax !== false && (e.isHigh || e.isLow)) {
           label = this._config.temperature_unit === 'C'
             ? Math.round((e.temp - 32) * 5 / 9)
             : Math.round(e.temp);
         } else if (this._config.show_precip !== false) {
           label = this._precipSymbol(e);
+          isPrecip = true;
         }
         if (label === '' || label === null || label === undefined) continue;
 
-        const cellFs = Math.max(thick * 0.44, SIZE * 0.018) * scale;
+        // Precip markers are a single glyph, so they can run larger than the
+        // two/three-digit min/max numbers without overflowing the cell.
+        const cellFs = (isPrecip
+          ? Math.max(thick * 0.64, SIZE * 0.027)
+          : Math.max(thick * 0.44, SIZE * 0.018)) * scale;
         labels.push(
           `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
           `font-size="${cellFs.toFixed(1)}" text-anchor="middle" ` +
