@@ -843,7 +843,7 @@ class WeatherMosaicCard extends HTMLElement {
           // drifting inward with the shrinking radius.
           labels.push(
             `<text x="${(cx + SIZE * 0.01).toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
-            `font-size="${dayFs.toFixed(1)}" font-weight="700" opacity="0.6" text-anchor="start" ` +
+            `font-size="${dayFs.toFixed(1)}" font-weight="700" text-anchor="start" ` +
             `dominant-baseline="central">${esc(dayLabels[d])}</text>`
           );
           continue;
