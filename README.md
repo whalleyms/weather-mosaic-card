@@ -31,6 +31,8 @@ The design is inspired by Edward Tufte's principle of maximizing the data-to-ink
 
 Each cell represents one hour of one day. Cell color encodes temperature using your choice of color scale. Precipitation probability is shown as subtle markers within cells. Daily high and low temperatures are labeled directly on their peak cells. The card scales to fit any dashboard column width.
 
+Prefer a radial view? The [Spiral Layout](#spiral-layout) winds the same forecast into a spiral that gives near-term hours more space than distant ones — encoding forecast confidence as screen space.
+
 ---
 
 ## Installation
@@ -152,7 +154,7 @@ The header then shows that sensor's reading, followed by the current condition f
 
 ## Spiral Layout
 
-The same forecast, wrapped into a spiral instead of a grid:
+Set `layout: spiral` to wrap the same forecast into a spiral instead of a grid:
 
 ```yaml
 type: custom:weather-mosaic-card
@@ -162,13 +164,13 @@ layout: spiral
 
 <img src="https://raw.githubusercontent.com/whalleyms/weather-mosaic-card/main/assets/weather_mosaic_spiral.png" alt="Weather Mosaic Card - spiral layout" width="520">
 
-Each full turn is one 24-hour day. Because a turn is exactly 24 hours, every hour always falls at the same angle — **midnight sits at 12 o'clock** on every ring — so the same hour on successive days lines up radially. Those radial lines are the polar equivalent of the grid's columns, and the cells stay edge to edge with no gaps, exactly like the grid.
+**Why a spiral?** A forecast is most trustworthy right now and least trustworthy a week out — but a grid gives every hour the same amount of space, quietly implying every hour is equally certain. The spiral encodes that confidence as screen real estate. It begins at the current hour on the outer edge, where the turns are longest and each hour gets the most room, and winds **inward into the future**, where the turns grow shorter and each day takes up steadily less area. How much of the display a moment occupies scales with how much you can trust it: the near term is large and prominent, the far edge of the forecast small and quiet.
 
-The spiral winds **inward into the future**: today is the outermost turn, and each following day is a slightly thinner band than the one before it. Combined with the natural loss of circumference toward the center, days further out occupy steadily less area — a deliberate cue that the forecast grows less certain the further ahead you look.
+**How to read it.** One full turn is one 24-hour day. Because a turn is exactly 24 hours, every hour always lands at the same angle — **midnight is at 12 o'clock** — so the same hour on successive days lines up radially, the polar equivalent of the grid's columns. The spiral starts at *now* (a small step in the outer edge marks the current time), so no space is wasted on hours that have already passed. The **current temperature sits in the center**, the even hours are labelled around the rim as a 24-hour clock (24 at the top), and two-letter day names run down from midnight.
 
-Day names sit on each ring at the midnight seam, and the hours are labelled around the outside. Everything else works exactly as it does in the grid — color scales, `custom_color_scale`, precipitation symbols, min/max labels, `days`, and `font_scale` all apply unchanged.
+Everything else works exactly as it does in the grid — color scales, `custom_color_scale`, precipitation symbols, min/max labels, `days`, and `font_scale` all apply unchanged. The thin gap between turns is adjustable with [`spiral_gap`](#advanced-yaml-options) (set it to `0` for a solid disk).
 
-> **Sizing:** the spiral is square, so give the card more height than the grid needs. In a sections dashboard it defaults to a taller footprint; in a masonry dashboard it will simply be a tall card.
+> **Sizing:** the spiral is square, so give the card more height than the wide grid needs. In a sections dashboard it claims a taller footprint automatically; in a masonry dashboard it renders as a tall card.
 
 ---
 

@@ -133,9 +133,10 @@
 <div class="page-header">
   <h1>Weather Mosaic Card</h1>
   <p>
-    A <a href="https://www.home-assistant.io/" style="color:#6b9fff">Home Assistant</a> Lovelace card
-    that displays a 7-day hourly weather forecast as a color-coded grid.
-    One row per day, one cell per hour — temperature encoded as color so you can spot patterns at a glance.
+    A <a href="https://www.home-assistant.io/" style="color:#6b9fff">Home Assistant</a> dashboard card
+    that displays a 7-day hourly weather forecast as a color-coded grid — one row per day,
+    one cell per hour, temperature encoded as color so you can spot patterns at a glance.
+    Or wind it into a <strong style="color:#c7d0dc">spiral</strong> that gives near-term hours more space than distant ones.
   </p>
   <div class="badges">
     <a href="https://github.com/whalleyms/weather-mosaic-card/releases/latest">
@@ -151,6 +152,18 @@
       <img src="https://img.shields.io/badge/HACS-Custom-41BDF5?style=flat-square" alt="HACS">
     </a>
   </div>
+</div>
+
+<!-- Spiral layout showcase -->
+<div class="section">
+  <p class="section-label">Spiral Layout</p>
+  <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;max-width:760px;margin:-4px 0 20px;">
+    The same forecast wound into a spiral. It starts at <em>now</em> on the outer edge and winds inward
+    into the future — and because each turn inward is shorter, days further ahead take up less space.
+    Screen real estate scales with forecast confidence: the near term is large and prominent, the far
+    edge small and quiet. Midnight is always at 12 o'clock and the current temperature sits in the center.
+  </p>
+  <div class="cards" id="spiral"></div>
 </div>
 
 <!-- Color scale showcase -->
@@ -269,6 +282,34 @@ scales.forEach(({ scale, label }) => {
     label
   );
 });
+
+// ---------------------------------------------------------------------------
+// Spiral layout — confidence encoded as screen real estate
+// ---------------------------------------------------------------------------
+addCard('spiral',
+  { entity: 'weather.spiral_mosaic', title: 'Sunnyvale, CA', layout: 'spiral', time_format: '12' },
+  sunnyvaleHass('weather.spiral_mosaic'),
+  'Now on the outer edge, winding inward into the future — distant days take up less space'
+);
+
+addCard('spiral',
+  { entity: 'weather.spiral_denver', title: 'Denver, CO', layout: 'spiral', color_scale: 'turbo', time_format: '12' },
+  makeMockHass('weather.spiral_denver', 'sunny',
+    { temperature: 52, latitude: 39.74, longitude: -104.98, timezone: 'America/Denver' },
+    { baseTemp: 55, swing: 22, tzOffsetHours: -6, trend: -2, wave: 8,
+      conditions: ['sunny','sunny','partlycloudy','snowy','snowy-rainy','cloudy','sunny'] }),
+  'Turbo scale — big day/night swings wind inward as bold color bands'
+);
+
+addCard('spiral',
+  { entity: 'weather.spiral_london', title: 'London, UK — °C', layout: 'spiral',
+    temperature_unit: 'C', color_scale: 'blue_red', time_format: '24' },
+  makeMockHass('weather.spiral_london', 'cloudy',
+    { temperature: 12, temperature_unit: '°C', latitude: 51.51, longitude: -0.13, timezone: 'Europe/London' },
+    { baseTemp: 12, swing: 6, tzOffsetHours: 1, trend: -1, wave: 3,
+      conditions: ['cloudy','rainy','partlycloudy','cloudy','rainy','rainy','cloudy'] }),
+  'Celsius — center temperature and forecast in °C, blue_red scale'
+);
 
 // ---------------------------------------------------------------------------
 // Different climates — full 7 days
