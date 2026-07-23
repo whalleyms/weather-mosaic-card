@@ -758,10 +758,9 @@ class WeatherMosaicCard extends HTMLElement {
   //
   // The spiral starts at *now*: the outer edge is anchored to the current hour,
   // and today's already-elapsed hours are not drawn, so no radius is wasted on
-  // an empty outer ring. It then winds inward over the remaining forecast. Band
-  // thickness tapers inward (GAMMA > 1) on top of the natural loss of
-  // circumference, so days further ahead occupy steadily less area — a visual
-  // cue that they're less certain.
+  // an empty outer ring. It then winds inward over the remaining forecast at a
+  // constant radial thickness per turn (a true Archimedean spiral); the natural
+  // loss of circumference still makes turns further ahead cover less area.
   _paintSpiral(grid, dayLabels, DAYS, nowHour) {
     const SIZE  = 1000;                 // viewBox units; the SVG scales to fit
     const cx    = SIZE / 2, cy = SIZE / 2;
@@ -771,7 +770,6 @@ class WeatherMosaicCard extends HTMLElement {
     const showHours = this._config.hours !== 'none' && this._config.hours !== false;
     const R_OUT = SIZE * (showHours ? 0.44 : 0.485);
     const R_IN  = R_OUT * 0.18;         // centre hole where the spiral ends
-    const GAMMA = 1.3;
     const STEPS = 6;                    // polyline segments per hour cell
     // Radial gap between turns, as a multiple of the default: `spiral_gap: 0`
     // removes it (turns abut into a solid disk), 2 doubles it. Invalid or
@@ -781,11 +779,12 @@ class WeatherMosaicCard extends HTMLElement {
     const scale = parseFloat(this._config.font_scale) || 1.0;
 
     // `p` is day-position (0 = today's midnight). Its distance from now is
-    // p - nowTurn; radius shrinks from R_OUT at now over the remaining forecast
-    // span, plus one turn of headroom so the innermost ring clears the centre.
+    // p - nowTurn; radius shrinks linearly from R_OUT at now over the remaining
+    // forecast span (so every turn is the same radial thickness), plus one turn
+    // of headroom so the innermost ring clears the centre.
     const nowTurn  = nowHour / 24;
     const SPAN     = (DAYS - nowTurn) + 1;
-    const radius   = (p) => R_IN + (R_OUT - R_IN) * Math.pow(1 - (p - nowTurn) / SPAN, GAMMA);
+    const radius   = (p) => R_IN + (R_OUT - R_IN) * (1 - (p - nowTurn) / SPAN);
     // Day-position of the outermost (nearest-now) ring present at angle hf — the
     // smallest whole-day offset from hf that isn't already in the past.
     const outerPos = (hf) => Math.max(0, Math.ceil(nowTurn - hf)) + hf;
@@ -837,6 +836,10 @@ class WeatherMosaicCard extends HTMLElement {
         const thick  = rOut - rIn;
         const [tx, ty] = xy((rOut + rIn) / 2, hfMid);
 
+        // One shared size for day names and min/max numbers (with a floor for
+        // small cards). Precip markers get their own, larger size below.
+        const labelFs = Math.max(thick * 0.46, SIZE * 0.02) * scale;
+
         // The day name occupies the midnight cell of its own ring, so skip that
         // cell's own marker rather than stacking text on text.
         const isDaySlot = h === 0 && !!dayLabels[d];
@@ -845,13 +848,12 @@ class WeatherMosaicCard extends HTMLElement {
           // are thin enough that pure proportional scaling goes unreadable. The
           // text may spill sideways into neighbouring hours, which is harmless —
           // only the band's thickness actually constrains it.
-          const dayFs = Math.max(thick * 0.52, SIZE * 0.021) * scale;
           // Centre every day name on the vertical axis, so the column lines up
           // under the "24" hour label at the top rather than drifting inward
           // with the shrinking radius.
           labels.push(
             `<text x="${cx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
-            `font-size="${dayFs.toFixed(1)}" font-weight="700" text-anchor="middle" ` +
+            `font-size="${labelFs.toFixed(1)}" font-weight="700" text-anchor="middle" ` +
             `dominant-baseline="central">${esc((dayLabels[d] || '').slice(0, 2))}</text>`
           );
           continue;
@@ -869,11 +871,11 @@ class WeatherMosaicCard extends HTMLElement {
         }
         if (label === '' || label === null || label === undefined) continue;
 
-        // Precip markers are a single glyph, so they can run larger than the
-        // two/three-digit min/max numbers without overflowing the cell.
-        const cellFs = (isPrecip
-          ? Math.max(thick * 0.64, SIZE * 0.027)
-          : Math.max(thick * 0.44, SIZE * 0.018)) * scale;
+        // Min/max numbers share the day-name size; precip markers are a single
+        // glyph, so they run larger without overflowing the cell.
+        const cellFs = isPrecip
+          ? Math.max(thick * 0.64, SIZE * 0.027) * scale
+          : labelFs;
         labels.push(
           `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
           `font-size="${cellFs.toFixed(1)}" font-weight="700" text-anchor="middle" ` +
