@@ -181,46 +181,48 @@ class WeatherMosaicCard extends HTMLElement {
     this._updateHeaderVisibility();
   }
 
+  // Current temperature for the header and the spiral centre. Prefers the
+  // optional local `temperature_entity`, else the weather entity's own reading.
+  // Returns the value rounded in the display unit, the unit letter, and the raw
+  // °F value (for colour mapping) — or null when no temperature is available.
+  _currentTemp() {
+    const weatherState = this._hass?.states[this._config?.entity];
+    let temp = null;
+    let nativeUnit = '°F';
+    const overrideId = this._config?.temperature_entity;
+    if (overrideId) {
+      const ovState = this._hass?.states[overrideId];
+      const ovTemp  = ovState ? parseFloat(ovState.state) : NaN;
+      if (ovState && !Number.isNaN(ovTemp)) {
+        temp       = ovTemp;
+        nativeUnit = ovState.attributes?.unit_of_measurement || '°F';
+      }
+    }
+    if (temp == null && weatherState?.attributes?.temperature != null) {
+      temp       = weatherState.attributes.temperature;
+      nativeUnit = weatherState.attributes.temperature_unit || '°F';
+    }
+    if (temp == null) return null;
+    const displayUnit = this._config?.temperature_unit || 'F';
+    const tempF = nativeUnit.includes('F') ? temp : temp * 9 / 5 + 32;
+    const value = displayUnit === 'F' ? Math.round(tempF) : Math.round((tempF - 32) * 5 / 9);
+    return { value, unit: displayUnit, f: tempF };
+  }
+
   _updateCurrent() {
     const el = this.shadowRoot?.getElementById('card-current');
     if (!el) return;
 
     let text = '';
     if (this._config?.show_current !== false) {
-      const weatherState = this._hass?.states[this._config?.entity];
-
-      // Temperature source: an optional local sensor (`temperature_entity`)
-      // overrides the header reading; otherwise use the weather entity's own
-      // temperature. Unset behaves exactly as before. The condition text always
-      // comes from the weather entity.
-      let temp = null;
-      let nativeUnit = '°F';
-      const overrideId = this._config?.temperature_entity;
-      if (overrideId) {
-        const ovState = this._hass?.states[overrideId];
-        const ovTemp  = ovState ? parseFloat(ovState.state) : NaN;
-        if (ovState && !Number.isNaN(ovTemp)) {
-          temp       = ovTemp;
-          nativeUnit = ovState.attributes?.unit_of_measurement || '°F';
-        }
-      }
-      if (temp == null && weatherState?.attributes?.temperature != null) {
-        temp       = weatherState.attributes.temperature;
-        nativeUnit = weatherState.attributes.temperature_unit || '°F';
-      }
-
-      if (temp != null) {
-        const displayUnit = this._config?.temperature_unit || 'F';
-        const isNativeF   = nativeUnit.includes('F');
-        const wantF       = displayUnit === 'F';
-        let t = Math.round(temp);
-        if (isNativeF && !wantF) t = Math.round((temp - 32) * 5 / 9);
-        else if (!isNativeF && wantF) t = Math.round(temp * 9 / 5 + 32);
+      const ct = this._currentTemp();
+      if (ct) {
+        const weatherState = this._hass?.states[this._config?.entity];
         const conditionMap = { partlycloudy: 'Partly Cloudy', 'clear-night': 'Clear' };
         const rawCondition = (weatherState?.state || '').toLowerCase();
         const condition = (!weatherState || rawCondition === 'unknown' || rawCondition === 'unavailable') ? ''
           : conditionMap[weatherState.state] || rawCondition.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        text = condition ? `${t}°${displayUnit}  ${condition}` : `${t}°${displayUnit}`;
+        text = condition ? `${ct.value}°${ct.unit}  ${condition}` : `${ct.value}°${ct.unit}`;
       }
     }
 
@@ -788,6 +790,12 @@ class WeatherMosaicCard extends HTMLElement {
     // Day-position of the outermost (nearest-now) ring present at angle hf — the
     // smallest whole-day offset from hf that isn't already in the past.
     const outerPos = (hf) => Math.max(0, Math.ceil(nowTurn - hf)) + hf;
+
+    // One shared font size for day names and min/max numbers. Thickness is now
+    // constant per turn, so a single value covers every ring (floor for small
+    // cards). Precip markers and the centre temperature scale off this.
+    const BAND     = (R_OUT - R_IN) / SPAN;
+    const LABEL_FS = Math.max(BAND * 0.46, SIZE * 0.02) * scale;
     // hf = fraction through the day; 0 is midnight at 12 o'clock, clockwise.
     const xy = (r, hf) => {
       const a = hf * 2 * Math.PI;
@@ -836,10 +844,6 @@ class WeatherMosaicCard extends HTMLElement {
         const thick  = rOut - rIn;
         const [tx, ty] = xy((rOut + rIn) / 2, hfMid);
 
-        // One shared size for day names and min/max numbers (with a floor for
-        // small cards). Precip markers get their own, larger size below.
-        const labelFs = Math.max(thick * 0.46, SIZE * 0.02) * scale;
-
         // The day name occupies the midnight cell of its own ring, so skip that
         // cell's own marker rather than stacking text on text.
         const isDaySlot = h === 0 && !!dayLabels[d];
@@ -853,7 +857,7 @@ class WeatherMosaicCard extends HTMLElement {
           // with the shrinking radius.
           labels.push(
             `<text x="${cx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
-            `font-size="${labelFs.toFixed(1)}" font-weight="700" text-anchor="middle" ` +
+            `font-size="${LABEL_FS.toFixed(1)}" font-weight="700" text-anchor="middle" ` +
             `dominant-baseline="central">${esc((dayLabels[d] || '').slice(0, 2))}</text>`
           );
           continue;
@@ -875,13 +879,26 @@ class WeatherMosaicCard extends HTMLElement {
         // glyph, so they run larger without overflowing the cell.
         const cellFs = isPrecip
           ? Math.max(thick * 0.64, SIZE * 0.027) * scale
-          : labelFs;
+          : LABEL_FS;
         labels.push(
           `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${fg}" ` +
           `font-size="${cellFs.toFixed(1)}" font-weight="700" text-anchor="middle" ` +
           `dominant-baseline="central">${esc(label)}</text>`
         );
       }
+    }
+
+    // Current temperature in the centre hole — 3× the label size, coloured by
+    // the active scale, with units. Same source as the header (local sensor
+    // override or the weather entity).
+    const ct = this._currentTemp();
+    if (ct && this._config.show_current !== false) {
+      labels.push(
+        `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" ` +
+        `fill="${this._tempToColor(ct.f).bg}" font-size="${(LABEL_FS * 3).toFixed(1)}" ` +
+        `font-weight="700" text-anchor="middle" dominant-baseline="central">` +
+        `${ct.value}°${esc(ct.unit)}</text>`
+      );
     }
 
     // The spiral marks the even hours around its rim as a 24-hour clock face:
