@@ -891,15 +891,15 @@ class WeatherMosaicCard extends HTMLElement {
     }
 
     // Current temperature in the centre hole — 3× the label size, coloured by
-    // the active scale, degrees only (no unit letter). Same source as the
-    // header (local sensor override or the weather entity).
+    // the active scale, bare number (no degree symbol or unit). Same source as
+    // the header (local sensor override or the weather entity).
     const ct = this._currentTemp();
     if (ct && this._config.show_current !== false) {
       labels.push(
         `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" ` +
         `fill="${this._tempToColor(ct.f).bg}" font-size="${(LABEL_FS * 3).toFixed(1)}" ` +
         `font-weight="700" text-anchor="middle" dominant-baseline="central">` +
-        `${ct.value}°</text>`
+        `${ct.value}</text>`
       );
     }
 
