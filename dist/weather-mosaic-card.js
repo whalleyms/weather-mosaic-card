@@ -214,7 +214,9 @@ class WeatherMosaicCard extends HTMLElement {
     if (!el) return;
 
     let text = '';
-    if (this._config?.show_current !== false) {
+    // The spiral shows the current temperature in its centre, so suppress the
+    // header's current reading (temp and conditions) entirely in that layout.
+    if (this._config?.show_current !== false && this._config?.layout !== 'spiral') {
       const ct = this._currentTemp();
       if (ct) {
         const weatherState = this._hass?.states[this._config?.entity];
