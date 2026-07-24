@@ -684,21 +684,60 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
-    if (this._config.layout === 'spiral') this._paintSpiral(grid, dayLabels, DAYS, nowHour);
-    else this._paintGrid(grid, dayLabels, DAYS);
+    if (this._config.layout === 'spiral') {
+      this._paintSpiral(grid, dayLabels, DAYS, nowHour);
+      return;
+    }
+
+    // Solar-aligned grid: rotate the columns so sunrise is the leftmost cell,
+    // and split day (left) from night (right) with a gap at sunset. Sunrise and
+    // sunset come from sun.sun (or the `sunrise`/`sunset` hour overrides),
+    // rounded to the nearest hour in the card's timezone.
+    let order = HOURS, gapAfter = null;
+    if (this._config.align_sunrise) {
+      const roundHour = (d) => {
+        let hm;
+        if (tz) {
+          const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d);
+          hm = parseInt(p.find(x => x.type === 'hour').value) + parseInt(p.find(x => x.type === 'minute').value) / 60;
+        } else {
+          hm = d.getHours() + d.getMinutes() / 60;
+        }
+        return Math.round(hm) % 24;
+      };
+      const sun = this._hass?.states['sun.sun'];
+      let sr = this._config.sunrise, ss = this._config.sunset;
+      if (sr == null && sun?.attributes?.next_rising) sr = roundHour(new Date(sun.attributes.next_rising));
+      if (ss == null && sun?.attributes?.next_setting) ss = roundHour(new Date(sun.attributes.next_setting));
+      sr = (((parseInt(sr ?? 6)) % 24) + 24) % 24;
+      ss = (((parseInt(ss ?? 18)) % 24) + 24) % 24;
+      order = Array.from({ length: 24 }, (_, p) => (sr + p) % 24);
+      gapAfter = (ss - sr + 24) % 24; // number of daytime columns from the left
+    }
+    const g = parseFloat(this._config.day_night_gap);
+    const gapPx = Number.isFinite(g) ? Math.max(0, g) : 1;
+    this._paintGrid(grid, dayLabels, DAYS, order, gapAfter, gapPx);
   }
 
   // -------------------------------------------------------------------------
   // Paint: rectangular grid (default) — one row per day, one column per hour
   // -------------------------------------------------------------------------
-  _paintGrid(grid, dayLabels, DAYS) {
+  _paintGrid(grid, dayLabels, DAYS, order = HOURS, gapAfter = null, gapPx = 1) {
     const mosaic = this.shadowRoot.getElementById('grid');
     mosaic.className = 'mosaic-grid';
     mosaic.innerHTML = '';
 
+    // A day/night gap splits the 24 columns after `gapAfter` daytime columns.
+    const useGap = gapAfter != null && gapAfter > 0 && gapAfter < 24;
+    mosaic.style.gridTemplateColumns = useGap
+      ? `max-content repeat(${gapAfter}, minmax(0, 1fr)) ${gapPx}px repeat(${24 - gapAfter}, minmax(0, 1fr))`
+      : '';
+    const appendGap = () => { const s = document.createElement('div'); s.className = 'dn-gap'; mosaic.appendChild(s); };
+
     const appendHoursRow = () => {
       mosaic.appendChild(document.createElement('div')); // spacer for day-label column
-      for (let h = 0; h < 24; h++) {
+      order.forEach((h, p) => {
+        if (useGap && p === gapAfter) appendGap();
         const div = document.createElement('div');
         div.className = 'hour-label';
         if ([6, 12, 18].includes(h)) {
@@ -707,7 +746,7 @@ class WeatherMosaicCard extends HTMLElement {
           div.appendChild(span);
         }
         mosaic.appendChild(div);
-      }
+      });
     };
 
     if (this._config.hours === 'above') appendHoursRow();
@@ -718,7 +757,8 @@ class WeatherMosaicCard extends HTMLElement {
       dl.textContent = dayLabels[d] || '';
       mosaic.appendChild(dl);
 
-      HOURS.forEach(h => {
+      order.forEach((h, p) => {
+        if (useGap && p === gapAfter) appendGap();
         const cell = document.createElement('div');
         cell.className = 'cell';
         const e = grid[d]?.[h];
@@ -1061,6 +1101,10 @@ class WeatherMosaicCardEditor extends HTMLElement {
           <span>Precipitation Symbols</span>
           <ha-switch id="show_precip"></ha-switch>
         </div>
+        <div class="switch-row">
+          <span>Align to Sunrise (day left / night right)</span>
+          <ha-switch id="align_sunrise"></ha-switch>
+        </div>
         <div>
           <label>Days to show</label>
           <select id="days">
@@ -1087,7 +1131,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
       });
     });
 
-    ['show_current', 'show_minmax', 'show_precip'].forEach(id => {
+    ['show_current', 'show_minmax', 'show_precip', 'align_sunrise'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.checked);
       });
@@ -1119,6 +1163,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
     chk('show_current', this._config.show_current !== false);
     chk('show_minmax',  this._config.show_minmax  !== false);
     chk('show_precip',  this._config.show_precip  !== false);
+    chk('align_sunrise', !!this._config.align_sunrise);
   }
 
   _changed(key, value) {

@@ -103,6 +103,7 @@ These options are available in the card's visual editor:
 | `show_minmax` | boolean | `true` | Show daily high and low temperature labels |
 | `show_precip` | boolean | `true` | Show precipitation symbols |
 | `color_scale` | `mosaic` \| `blue_red` \| `turbo` \| `viridis` \| `inferno` \| `white_hot` \| `black_hot` | `mosaic` | Color scale used to encode temperature |
+| `align_sunrise` | boolean | `false` | Rotate the grid so **sunrise is the leftmost column** — daytime fills the left, night the right, split by a gap at sunset. See [Solar-Aligned Grid](#solar-aligned-grid). |
 
 ### Advanced YAML Options
 
@@ -115,6 +116,8 @@ These options are not shown in the visual editor but can be set in YAML:
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
 | `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
 | `spiral_gap` | number | `1` | _(Spiral layout only)_ Thickness of the gap between spiral turns, as a multiple of the default. `0` removes it (turns abut into a solid disk); `2` doubles it. |
+| `day_night_gap` | number | `1` | _(with `align_sunrise`)_ Width in pixels of the gap between the daytime and nighttime portions of the grid. |
+| `sunrise` / `sunset` | 0–23 | _(from `sun.sun`)_ | _(with `align_sunrise`)_ Override the sunrise/sunset hour instead of reading it from the `sun.sun` entity — useful for cards showing a location in a different timezone. |
 | `custom_color_scale` | list | _(unset)_ | Define your own temperature→color stops, overriding `color_scale`. See [Custom Color Scale](#custom-color-scale). |
 | `precipitation_symbols` | list | _(unset)_ | Define your own precipitation markers and the conditions they appear under. See [Custom Precipitation Symbols](#custom-precipitation-symbols). |
 
@@ -171,6 +174,24 @@ layout: spiral
 Everything else works exactly as it does in the grid — color scales, `custom_color_scale`, precipitation symbols, min/max labels, `days`, and `font_scale` all apply unchanged. The thin gap between turns is adjustable with [`spiral_gap`](#advanced-yaml-options) (set it to `0` for a solid disk).
 
 > **Sizing:** the spiral is square, so give the card more height than the wide grid needs. In a sections dashboard it claims a taller footprint automatically; in a masonry dashboard it renders as a tall card.
+
+---
+
+## Solar-Aligned Grid
+
+By default the grid runs midnight → midnight. Turn on **`align_sunrise`** (a switch in the visual editor) to rotate it so **sunrise is the leftmost column** instead:
+
+```yaml
+type: custom:weather-mosaic-card
+entity: weather.home
+align_sunrise: true
+```
+
+Now the **left portion of each row is daytime** (sunrise → sunset) and the **right portion is nighttime**, separated by a thin gap at sunset. Because the split follows the actual day length, the daytime portion is **narrow in winter and wide in summer** — the grid quietly shows the seasons changing.
+
+Sunrise and sunset are read from your **`sun.sun`** entity and rounded to the nearest hour (one value for all the days shown — day length barely changes across a week). For a card showing a location in a **different timezone**, set the `sunrise` / `sunset` hours explicitly, since `sun.sun` only tracks your home location. The gap width is adjustable with `day_night_gap` (pixels).
+
+> Works with the standard grid layout (not the spiral). Everything else — color scales, precipitation symbols, min/max labels — applies unchanged.
 
 ---
 

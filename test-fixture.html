@@ -253,6 +253,34 @@
         { baseTemp: 42, swing: 14, tzOffsetHours: -4,
           conditions: ['snowy','rainy','cloudy','sunny','rainy','snowy','cloudy'] })
     );
+
+    // --- Solar-aligned grid: sunrise leftmost, day left / night right, gap at sunset ---
+    const sunState = (riseH, setH) => ({ 'sun.sun': { state: 'above_horizon', attributes: {
+      next_rising:  `2026-07-24T${String(riseH).padStart(2,'0')}:00:00-07:00`,
+      next_setting: `2026-07-24T${String(setH).padStart(2,'0')}:00:00-07:00`,
+    } } });
+
+    // Summer: long day -> wide left (daytime) portion, gap right of center
+    addCard(
+      { entity: 'weather.sunnyvale', title: 'Solar-aligned — summer (sunrise 6, sunset 20)',
+        align_sunrise: true, hours: 'above', time_format: '24' },
+      makeMockHass('weather.sunnyvale', 'sunny',
+        { temperature: 70, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 66, swing: 16, tzOffsetHours: -7,
+          conditions: ['sunny','partlycloudy','sunny','cloudy','sunny','partlycloudy','sunny'] },
+        sunState(6, 20))
+    );
+
+    // Winter: short day -> narrow left portion, gap left of center; bigger gap
+    addCard(
+      { entity: 'weather.sunnyvale', title: 'Solar-aligned — winter (sunrise 7, sunset 17), gap 3px',
+        align_sunrise: true, day_night_gap: 3, hours: 'above', time_format: '24' },
+      makeMockHass('weather.sunnyvale', 'cloudy',
+        { temperature: 48, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 46, swing: 12, tzOffsetHours: -7,
+          conditions: ['cloudy','rainy','partlycloudy','cloudy','rainy','cloudy','partlycloudy'] },
+        sunState(7, 17))
+    );
   </script>
 </body>
 </html>
