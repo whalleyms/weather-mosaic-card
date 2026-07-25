@@ -1017,7 +1017,7 @@ class WeatherMosaicCard extends HTMLElement {
     // the rim like the short hour labels do; strongest at the 3/9-o'clock sides.
     const sunLabels = (!showHours || !this._config.sun_gaps) ? []
       : sunMarks.map(m => {
-          const extra = String(m.time).length * hourFsN * 0.26 * Math.abs(Math.sin(m.col / 24 * 2 * Math.PI));
+          const extra = String(m.time).length * hourFsN * 0.13 * Math.abs(Math.sin(m.col / 24 * 2 * Math.PI));
           return ringLabel(m.col, m.time, extra);
         });
 
