@@ -984,16 +984,22 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
-    // Current temperature in the centre hole — 3× the label size, coloured by
-    // the active scale, bare number (no degree symbol or unit). Same source as
-    // the header (local sensor override or the weather entity).
+    // Current temperature in the centre hole — coloured by the active scale,
+    // bare number. Sized to fit the hole (radius R_IN, constant regardless of
+    // the day count) so it stays comfortable whether 2 or 7 days are shown: the
+    // font is the largest whose bounding box fits inside a circle of radius
+    // R_IN·0.86, adapting to the number of digits (e.g. "5" vs "-12" vs "100").
     const ct = this._currentTemp();
     if (ct && this._config.show_current !== false) {
+      const txt = `${ct.value}`;
+      const nChars = Math.max(2, txt.length);          // don't oversize single digits
+      const centerFs = R_IN * 0.86 /
+        Math.hypot(nChars * 0.6 / 2, 0.72 / 2);        // 0.6 = char width, 0.72 = cap height (per em)
       labels.push(
         `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" ` +
-        `fill="${this._tempToColor(ct.f).bg}" font-size="${(LABEL_FS * 3).toFixed(1)}" ` +
+        `fill="${this._tempToColor(ct.f).bg}" font-size="${centerFs.toFixed(1)}" ` +
         `font-weight="700" text-anchor="middle" dominant-baseline="central">` +
-        `${ct.value}</text>`
+        `${esc(txt)}</text>`
       );
     }
 
