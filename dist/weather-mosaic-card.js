@@ -787,6 +787,14 @@ class WeatherMosaicCard extends HTMLElement {
     mosaic.className = 'mosaic-grid';
     mosaic.innerHTML = '';
 
+    // Hour labels and sunrise/sunset time labels are controlled independently.
+    // `hours` (above/below/none) governs the 6a/12p/6p ticks; `sun_labels`
+    // governs the exact sunrise/sunset times and defaults to matching the hour
+    // labels (so existing configs are unchanged) but can be forced on or off.
+    const showHourLabels = this._config.hours !== 'none' && this._config.hours !== false;
+    const showSunLabels = !!this._config.sun_gaps &&
+      (this._config.sun_labels != null ? !!this._config.sun_labels : showHourLabels);
+
     // Thin vertical gaps before the sunrise/sunset columns (0–23, deduped).
     const marks = (sunMarks || []).filter(m => m && m.col >= 0 && m.col <= 23);
     const gaps = marks.map(m => m.col).sort((a, b) => a - b);
@@ -810,12 +818,14 @@ class WeatherMosaicCard extends HTMLElement {
         if (gaps.includes(h)) appendGap();
         const div = document.createElement('div');
         div.className = 'hour-label';
-        // At a sunrise/sunset column show its exact time; otherwise the usual
-        // 6a/12p/6p label — unless it's next to a sun label, which would overlap.
-        const mark = marks.find(m => m.col === h);
+        // At a sunrise/sunset column show its exact time (when sun labels are on);
+        // otherwise the usual 6a/12p/6p label (when hour labels are on) — but not
+        // right beside a shown sun label, which would overlap.
+        const mark = showSunLabels ? marks.find(m => m.col === h) : null;
         let text = null;
         if (mark) text = mark.time;
-        else if ([6, 12, 18].includes(h) && !marks.some(m => Math.abs(m.col - h) <= 1)) text = this._formatHour(h);
+        else if (showHourLabels && [6, 12, 18].includes(h) &&
+                 !(showSunLabels && marks.some(m => Math.abs(m.col - h) <= 1))) text = this._formatHour(h);
         if (text != null) {
           const span = document.createElement('span');
           span.textContent = text;
@@ -825,7 +835,12 @@ class WeatherMosaicCard extends HTMLElement {
       }
     };
 
-    if (this._config.hours === 'above') appendHoursRow();
+    // Reserve the label row when either kind of label is shown. It sits below
+    // only when hour labels are explicitly placed below; otherwise (including a
+    // sun-labels-only row with `hours: none`) it sits above.
+    const rowWanted = showHourLabels || showSunLabels;
+    const rowBelow = this._config.hours === 'below';
+    if (rowWanted && !rowBelow) appendHoursRow();
 
     for (let d = 0; d < DAYS; d++) {
       const dl = document.createElement('div');
@@ -866,7 +881,7 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
-    if (this._config.hours === 'below') appendHoursRow();
+    if (rowWanted && rowBelow) appendHoursRow();
   }
 
   // -------------------------------------------------------------------------
@@ -887,8 +902,13 @@ class WeatherMosaicCard extends HTMLElement {
     // `above`/`below` have no meaning on a circle — the labels always ring the
     // outside — but `none` hides them, as it does in the grid. With no labels to
     // make room for, the spiral grows to fill the space they would have used.
-    const showHours = this._config.hours !== 'none' && this._config.hours !== false;
-    const R_OUT = SIZE * (showHours ? 0.44 : 0.485);
+    // Hour labels (`hours`) and sunrise/sunset time labels (`sun_labels`) are
+    // independent; `sun_labels` defaults to matching the hour labels. The rim is
+    // reserved (and the spiral shrinks) whenever either kind of label is shown.
+    const showHourLabels = this._config.hours !== 'none' && this._config.hours !== false;
+    const showSunLabels = !!this._config.sun_gaps &&
+      (this._config.sun_labels != null ? !!this._config.sun_labels : showHourLabels);
+    const R_OUT = SIZE * ((showHourLabels || showSunLabels) ? 0.44 : 0.485);
     const R_IN  = R_OUT * 0.18;         // centre hole where the spiral ends
     const STEPS = 6;                    // polyline segments per hour cell
     // Radial gap between turns, as a multiple of the default: `spiral_gap: 0`
@@ -1044,13 +1064,13 @@ class WeatherMosaicCard extends HTMLElement {
     // Respects `time_format`: 24h shows 24/2/4… (24 at the top for midnight);
     // 12h shows 12a/2a…12p/2p… via the shared hour formatter.
     const ringHour = (h) => this._config.time_format === '12' ? this._formatHour(h) : (h === 0 ? 24 : h);
-    const hours = !showHours ? [] : [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
-      .filter(h => !sunCols.some(c => cdist(c, h) <= 1))
+    const hours = !showHourLabels ? [] : [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+      .filter(h => !(showSunLabels && sunCols.some(c => cdist(c, h) <= 1)))
       .map(h => ringLabel(h, ringHour(h)));
     // Exact sunrise/sunset times on the ring, in the same 12/24 style. Push them
     // out by the radial part of their (longer) width so the inner edge clears
     // the rim like the short hour labels do; strongest at the 3/9-o'clock sides.
-    const sunLabels = (!showHours || !this._config.sun_gaps) ? []
+    const sunLabels = !showSunLabels ? []
       : sunMarks.map(m => {
           const extra = String(m.time).length * hourFsN * 0.13 * Math.abs(Math.sin(m.col / 24 * 2 * Math.PI));
           return ringLabel(m.col, m.time, extra);

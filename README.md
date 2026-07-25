@@ -118,6 +118,7 @@ These options can be set in YAML. (`timezone`, `latitude` and `longitude` also a
 | `spiral_gap` | number | `1` | _(Spiral layout only)_ Thickness of the gap between spiral turns, as a multiple of the default. `0` removes it (turns abut into a solid disk); `2` doubles it. |
 | `latitude` / `longitude` | number | _(auto)_ | _(with `sun_gaps`)_ Coordinates used to compute sunrise/sunset. Resolved automatically: a home-timezone card uses your Home Assistant location; a card with a different `timezone` uses that timezone's reference location. Set both to pin an exact spot (recommended for large timezones such as `America/New_York`, whose reference is New York City). |
 | `sun_gap_width` | number | `2` | _(with `sun_gaps`)_ Width in pixels of the sunrise/sunset gaps. |
+| `sun_labels` | boolean | _(matches `hours`)_ | _(with `sun_gaps`)_ Whether to print the exact sunrise/sunset **times** at the gaps. Defaults to following the hour labels; set `true` to show the times even when hour labels are off (`hours: none`), or `false` to keep the gaps unlabeled while hour labels stay on. |
 | `sunrise` / `sunset` | 0–23 | _(computed)_ | _(with `sun_gaps`)_ Force the sunrise/sunset hour directly, bypassing the coordinate calculation. Rarely needed. |
 | `custom_color_scale` | list | _(unset)_ | Define your own temperature→color stops, overriding `color_scale`. See [Custom Color Scale](#custom-color-scale). |
 | `precipitation_symbols` | list | _(unset)_ | Define your own precipitation markers and the conditions they appear under. See [Custom Precipitation Symbols](#custom-precipitation-symbols). |
@@ -192,7 +193,13 @@ sun_gaps: true
 
 On the grid, a gap opens at the sunrise column and another at the sunset column, so the daytime hours are visibly bracketed off from the night — a narrow band in winter, wide in summer. On the **spiral layout** the same markers appear as radial gaps at the sunrise and sunset angles, separating the daytime arc from the night arc.
 
-When the hour labels are shown, the **exact sunrise and sunset times** are printed at the gaps (in the same 12- or 24-hour style as the hour labels), replacing any hour label they would overlap.
+By default, whenever the hour labels are shown the **exact sunrise and sunset times** are printed at the gaps too (in the same 12- or 24-hour style as the hour labels), replacing any hour label they would overlap. The `sun_labels` option controls this independently of the hour labels, so all four combinations are possible — no labels, sun times only, hour labels only, or both:
+
+```yaml
+sun_gaps: true
+hours: none         # hide the hour labels…
+sun_labels: true    # …but still print the sunrise/sunset times
+```
 
 Sunrise and sunset are **computed from the location's coordinates and today's date**, rounded to the nearest hour. Coordinates are resolved automatically, so most cards need **no geographic setup**:
 
