@@ -622,11 +622,6 @@ class WeatherMosaicCard extends HTMLElement {
     this._lastForecast = forecast;
 
     const DAYS = Math.min(7, Math.max(1, parseInt(this._config.days) || 7));
-    // A sunrise-aligned row is a solar day (sunrise → next sunrise), so it pulls
-    // its after-midnight hours from the following calendar day — bucket one
-    // extra day so the last row has that morning available.
-    const solar = !!this._config.align_sunrise && this._config.layout !== 'spiral';
-    const bucketDays = DAYS + (solar ? 1 : 0);
     const dayMap = {}, dayLabels = [];
     const grid = [];
     let dayCount = 0;
@@ -662,7 +657,7 @@ class WeatherMosaicCard extends HTMLElement {
     forecast.forEach(item => {
       const dt  = new Date(item.datetime);
       const key = tzKey(dt);
-      if (!dayMap.hasOwnProperty(key) && dayCount < bucketDays) {
+      if (!dayMap.hasOwnProperty(key) && dayCount < DAYS) {
         dayMap[key] = dayCount++;
         dayLabels.push(tzWday(dt));
       }
@@ -718,12 +713,12 @@ class WeatherMosaicCard extends HTMLElement {
       return;
     }
 
-    // Solar-aligned grid: rotate the columns so sunrise is the leftmost cell,
-    // and split day (left) from night (right) with a gap at sunset. Sunrise and
-    // sunset come from sun.sun (or the `sunrise`/`sunset` hour overrides),
+    // Sunrise/sunset markers: thin vertical gaps at the sunrise and sunset
+    // columns of the standard midnight→midnight grid. Sunrise and sunset are
+    // computed from coordinates (or the `sunrise`/`sunset` hour overrides),
     // rounded to the nearest hour in the card's timezone.
-    let order = HOURS, gapAfter = null;
-    if (this._config.align_sunrise) {
+    let gapCols = [];
+    if (this._config.sun_gaps) {
       const roundHour = (d) => {
         let hm;
         if (tz) {
@@ -740,7 +735,7 @@ class WeatherMosaicCard extends HTMLElement {
         // else the Home Assistant location. Only fall back to the HA location for
         // a home-timezone card: a card with a different `timezone` is a remote
         // location where home coordinates would give the wrong sun times, so
-        // leave lat/lon unset (→ default hours) rather than be confidently wrong.
+        // leave lat/lon unset rather than be confidently wrong.
         const homeLike = !tz || tz === this._hass?.config?.time_zone;
         const lat = parseFloat(this._config.latitude ?? (homeLike ? this._hass?.config?.latitude : undefined));
         const lon = parseFloat(this._config.longitude ?? (homeLike ? this._hass?.config?.longitude : undefined));
@@ -750,47 +745,53 @@ class WeatherMosaicCard extends HTMLElement {
           if (ss == null && t.sunset)  ss = roundHour(t.sunset);
         }
       }
-      sr = (((parseInt(sr ?? 6)) % 24) + 24) % 24;
-      ss = (((parseInt(ss ?? 18)) % 24) + 24) % 24;
-      order = Array.from({ length: 24 }, (_, p) => (sr + p) % 24);
-      gapAfter = (ss - sr + 24) % 24; // number of daytime columns from the left
+      // A gap sits before the sunrise column (night→day) and before the sunset
+      // column (day→night). Skip column 0 (a gap at the very left edge is moot).
+      [sr, ss].forEach(h => {
+        if (h == null || Number.isNaN(parseInt(h))) return;
+        const c = (((parseInt(h)) % 24) + 24) % 24;
+        if (c > 0 && !gapCols.includes(c)) gapCols.push(c);
+      });
+      gapCols.sort((a, b) => a - b);
     }
-    const g = parseFloat(this._config.day_night_gap);
-    const gapPx = Number.isFinite(g) ? Math.max(0, g) : 3;
-    this._paintGrid(grid, dayLabels, DAYS, order, gapAfter, gapPx);
+    const gw = parseFloat(this._config.sun_gap_width);
+    const gapPx = Number.isFinite(gw) ? Math.max(0, gw) : 2;
+    this._paintGrid(grid, dayLabels, DAYS, gapCols, gapPx);
   }
 
   // -------------------------------------------------------------------------
   // Paint: rectangular grid (default) — one row per day, one column per hour
   // -------------------------------------------------------------------------
-  _paintGrid(grid, dayLabels, DAYS, order = HOURS, gapAfter = null, gapPx = 3) {
+  _paintGrid(grid, dayLabels, DAYS, gapCols = [], gapPx = 2) {
     const mosaic = this.shadowRoot.getElementById('grid');
     mosaic.className = 'mosaic-grid';
     mosaic.innerHTML = '';
 
-    // A day/night gap splits the 24 columns after `gapAfter` daytime columns.
-    const useGap = gapAfter != null && gapAfter > 0 && gapAfter < 24;
-    mosaic.style.gridTemplateColumns = useGap
-      ? `max-content repeat(${gapAfter}, minmax(0, 1fr)) ${gapPx}px repeat(${24 - gapAfter}, minmax(0, 1fr))`
-      : '';
+    // Thin vertical gaps before the given hour columns (sunrise, sunset).
+    const gaps = (gapCols || []).filter(c => c > 0 && c < 24).sort((a, b) => a - b);
+    if (gaps.length) {
+      const parts = ['max-content']; let prev = 0;
+      for (const gc of gaps) { parts.push(`repeat(${gc - prev}, minmax(0, 1fr))`); parts.push(`${gapPx}px`); prev = gc; }
+      parts.push(`repeat(${24 - prev}, minmax(0, 1fr))`);
+      mosaic.style.gridTemplateColumns = parts.join(' ');
+    } else {
+      mosaic.style.gridTemplateColumns = '';
+    }
     const appendGap = () => { const s = document.createElement('div'); s.className = 'dn-gap'; mosaic.appendChild(s); };
-    // Sunrise-aligned grids also label midnight (12a) so the night portion on
-    // the right isn't left unlabeled.
-    const labeledHours = useGap ? [0, 6, 12, 18] : [6, 12, 18];
 
     const appendHoursRow = () => {
       mosaic.appendChild(document.createElement('div')); // spacer for day-label column
-      order.forEach((h, p) => {
-        if (useGap && p === gapAfter) appendGap();
+      for (let h = 0; h < 24; h++) {
+        if (gaps.includes(h)) appendGap();
         const div = document.createElement('div');
         div.className = 'hour-label';
-        if (labeledHours.includes(h)) {
+        if ([6, 12, 18].includes(h)) {
           const span = document.createElement('span');
           span.textContent = this._formatHour(h);
           div.appendChild(span);
         }
         mosaic.appendChild(div);
-      });
+      }
     };
 
     if (this._config.hours === 'above') appendHoursRow();
@@ -801,14 +802,11 @@ class WeatherMosaicCard extends HTMLElement {
       dl.textContent = dayLabels[d] || '';
       mosaic.appendChild(dl);
 
-      order.forEach((h, p) => {
-        if (useGap && p === gapAfter) appendGap();
+      for (let h = 0; h < 24; h++) {
+        if (gaps.includes(h)) appendGap();
         const cell = document.createElement('div');
         cell.className = 'cell';
-        // In a sunrise-aligned row, hours before sunrise belong to the *next*
-        // calendar day (the coming night → tomorrow morning), so pull them from
-        // grid[d+1]. In the normal grid order[0] is 0, so this is always grid[d].
-        const e = grid[h >= order[0] ? d : d + 1]?.[h];
+        const e = grid[d]?.[h];
 
         if (e) {
           const { bg, fg } = this._tempToColor(e.temp);
@@ -834,7 +832,7 @@ class WeatherMosaicCard extends HTMLElement {
         }
 
         mosaic.appendChild(cell);
-      });
+      }
     }
 
     if (this._config.hours === 'below') appendHoursRow();
@@ -1149,8 +1147,8 @@ class WeatherMosaicCardEditor extends HTMLElement {
           <ha-switch id="show_precip"></ha-switch>
         </div>
         <div class="switch-row">
-          <span>Align to Sunrise (day left / night right)</span>
-          <ha-switch id="align_sunrise"></ha-switch>
+          <span>Mark Sunrise &amp; Sunset (gaps)</span>
+          <ha-switch id="sun_gaps"></ha-switch>
         </div>
         <div>
           <label>Days to show</label>
@@ -1178,7 +1176,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
       });
     });
 
-    ['show_current', 'show_minmax', 'show_precip', 'align_sunrise'].forEach(id => {
+    ['show_current', 'show_minmax', 'show_precip', 'sun_gaps'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.checked);
       });
@@ -1210,7 +1208,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
     chk('show_current', this._config.show_current !== false);
     chk('show_minmax',  this._config.show_minmax  !== false);
     chk('show_precip',  this._config.show_precip  !== false);
-    chk('align_sunrise', !!this._config.align_sunrise);
+    chk('sun_gaps', !!this._config.sun_gaps);
   }
 
   _changed(key, value) {

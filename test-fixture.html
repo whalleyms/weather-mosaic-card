@@ -254,25 +254,25 @@
           conditions: ['snowy','rainy','cloudy','sunny','rainy','snowy','cloudy'] })
     );
 
-    // --- Solar-aligned grid: sunrise leftmost, day left / night right ---
-    // Sunrise/sunset are computed from coordinates + today's date. The home card
-    // uses the HA location (hass.config); the remote card supplies its own.
+    // --- Sunrise/sunset gaps on the standard grid ---
+    // Vertical gaps at the sunrise and sunset columns; sunrise/sunset computed
+    // from coordinates. Home uses hass.config; a remote card supplies its own.
 
     // Home (Sunnyvale) — no coords needed, auto from hass.config
     addCard(
-      { entity: 'weather.sunnyvale', title: 'Solar-aligned — Home (auto from HA location)',
-        align_sunrise: true, hours: 'above', time_format: '24' },
+      { entity: 'weather.sunnyvale', title: 'Sun gaps — Home (auto from HA location)',
+        sun_gaps: true, hours: 'above', time_format: '12' },
       makeMockHass('weather.sunnyvale', 'sunny',
         { temperature: 70, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
         { baseTemp: 66, swing: 16, tzOffsetHours: -7,
           conditions: ['sunny','partlycloudy','sunny','cloudy','sunny','partlycloudy','sunny'] })
     );
 
-    // Remote (London) — its own latitude/longitude + timezone, gap 2px
+    // Remote (London) — its own latitude/longitude + timezone, gap 4px
     addCard(
-      { entity: 'weather.london', title: 'Solar-aligned — London (its own lat/lon), gap 2px',
-        align_sunrise: true, latitude: 51.5, longitude: -0.1, timezone: 'Europe/London',
-        day_night_gap: 2, hours: 'above', time_format: '24' },
+      { entity: 'weather.london', title: 'Sun gaps — London (its own lat/lon), 4px',
+        sun_gaps: true, sun_gap_width: 4, latitude: 51.5, longitude: -0.1, timezone: 'Europe/London',
+        hours: 'above', time_format: '24' },
       makeMockHass('weather.london', 'partlycloudy',
         { temperature: 62, latitude: 51.5, longitude: -0.1, timezone: 'Europe/London' },
         { baseTemp: 60, swing: 10, tzOffsetHours: 1,

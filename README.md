@@ -103,7 +103,7 @@ These options are available in the card's visual editor:
 | `show_minmax` | boolean | `true` | Show daily high and low temperature labels |
 | `show_precip` | boolean | `true` | Show precipitation symbols |
 | `color_scale` | `mosaic` \| `blue_red` \| `turbo` \| `viridis` \| `inferno` \| `white_hot` \| `black_hot` | `mosaic` | Color scale used to encode temperature |
-| `align_sunrise` | boolean | `false` | Rotate the grid so **sunrise is the leftmost column** — daytime fills the left, night the right, split by a gap at sunset. See [Solar-Aligned Grid](#solar-aligned-grid). |
+| `sun_gaps` | boolean | `false` | Mark **sunrise and sunset** as thin vertical gaps on the grid, bracketing the daytime hours. See [Sunrise & Sunset Markers](#sunrise--sunset-markers). |
 
 ### Advanced YAML Options
 
@@ -116,9 +116,9 @@ These options are not shown in the visual editor but can be set in YAML:
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
 | `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
 | `spiral_gap` | number | `1` | _(Spiral layout only)_ Thickness of the gap between spiral turns, as a multiple of the default. `0` removes it (turns abut into a solid disk); `2` doubles it. |
-| `latitude` / `longitude` | number | _(HA location)_ | _(with `align_sunrise`)_ Coordinates used to compute sunrise/sunset. Defaults to your Home Assistant location; set both for a card showing a different place. |
-| `day_night_gap` | number | `3` | _(with `align_sunrise`)_ Width in pixels of the gap between the daytime and nighttime portions of the grid. |
-| `sunrise` / `sunset` | 0–23 | _(computed)_ | _(with `align_sunrise`)_ Force the sunrise/sunset hour directly, bypassing the coordinate calculation. Rarely needed. |
+| `latitude` / `longitude` | number | _(HA location)_ | _(with `sun_gaps`)_ Coordinates used to compute sunrise/sunset. Defaults to your Home Assistant location; set both for a card showing a different place. |
+| `sun_gap_width` | number | `2` | _(with `sun_gaps`)_ Width in pixels of the sunrise/sunset gaps. |
+| `sunrise` / `sunset` | 0–23 | _(computed)_ | _(with `sun_gaps`)_ Force the sunrise/sunset hour directly, bypassing the coordinate calculation. Rarely needed. |
 | `custom_color_scale` | list | _(unset)_ | Define your own temperature→color stops, overriding `color_scale`. See [Custom Color Scale](#custom-color-scale). |
 | `precipitation_symbols` | list | _(unset)_ | Define your own precipitation markers and the conditions they appear under. See [Custom Precipitation Symbols](#custom-precipitation-symbols). |
 
@@ -178,21 +178,21 @@ Everything else works exactly as it does in the grid — color scales, `custom_c
 
 ---
 
-## Solar-Aligned Grid
+## Sunrise & Sunset Markers
 
-By default the grid runs midnight → midnight. Turn on **`align_sunrise`** (a switch in the visual editor) to rotate it so **sunrise is the leftmost column** instead:
+Turn on **`sun_gaps`** (a switch in the visual editor) to mark **sunrise and sunset** as thin vertical gaps on the grid:
 
 ```yaml
 type: custom:weather-mosaic-card
 entity: weather.home
-align_sunrise: true
+sun_gaps: true
 ```
 
-Now the **left portion of each row is daytime** (sunrise → sunset) and the **right portion is nighttime**, separated by a thin gap at sunset. Because the split follows the actual day length, the daytime portion is **narrow in winter and wide in summer** — the grid quietly shows the seasons changing.
+The grid still runs midnight → midnight, but a gap opens at the sunrise column and another at the sunset column, so the daytime hours are visibly bracketed off from the night. In winter the daylight band between the gaps is narrow; in summer it's wide.
 
-Sunrise and sunset are **computed from the location's coordinates and today's date**, rounded to the nearest hour (one value for all the days shown — day length barely changes across a week). A card for your **home location needs no setup** — it uses your Home Assistant coordinates automatically. For a card showing **another location**, give it that place's `latitude` / `longitude` (plus its `timezone`, which the card already needs for the hour labels) — a one-time geographic fact, with no seasonal upkeep. The gap width is adjustable with `day_night_gap` (pixels).
+Sunrise and sunset are **computed from the location's coordinates and today's date**, rounded to the nearest hour. A card for your **home location needs no setup** — it uses your Home Assistant coordinates automatically. For a card showing **another location**, give it that place's `latitude` / `longitude` (plus its `timezone`, which the card already needs for the hour labels) — a one-time geographic fact, with no seasonal upkeep. The gap width is adjustable with `sun_gap_width` (pixels, default 2).
 
-> Works with the standard grid layout (not the spiral). Everything else — color scales, precipitation symbols, min/max labels — applies unchanged.
+> Applies to the standard grid layout (not the spiral). Everything else — color scales, precipitation symbols, min/max labels — is unchanged.
 
 ---
 
