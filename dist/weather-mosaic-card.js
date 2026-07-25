@@ -622,6 +622,11 @@ class WeatherMosaicCard extends HTMLElement {
     this._lastForecast = forecast;
 
     const DAYS = Math.min(7, Math.max(1, parseInt(this._config.days) || 7));
+    // A sunrise-aligned row is a solar day (sunrise → next sunrise), so it pulls
+    // its after-midnight hours from the following calendar day — bucket one
+    // extra day so the last row has that morning available.
+    const solar = !!this._config.align_sunrise && this._config.layout !== 'spiral';
+    const bucketDays = DAYS + (solar ? 1 : 0);
     const dayMap = {}, dayLabels = [];
     const grid = [];
     let dayCount = 0;
@@ -657,7 +662,7 @@ class WeatherMosaicCard extends HTMLElement {
     forecast.forEach(item => {
       const dt  = new Date(item.datetime);
       const key = tzKey(dt);
-      if (!dayMap.hasOwnProperty(key) && dayCount < DAYS) {
+      if (!dayMap.hasOwnProperty(key) && dayCount < bucketDays) {
         dayMap[key] = dayCount++;
         dayLabels.push(tzWday(dt));
       }
@@ -797,7 +802,10 @@ class WeatherMosaicCard extends HTMLElement {
         if (useGap && p === gapAfter) appendGap();
         const cell = document.createElement('div');
         cell.className = 'cell';
-        const e = grid[d]?.[h];
+        // In a sunrise-aligned row, hours before sunrise belong to the *next*
+        // calendar day (the coming night → tomorrow morning), so pull them from
+        // grid[d+1]. In the normal grid order[0] is 0, so this is always grid[d].
+        const e = grid[h >= order[0] ? d : d + 1]?.[h];
 
         if (e) {
           const { bg, fg } = this._tempToColor(e.temp);
