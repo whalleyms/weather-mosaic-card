@@ -766,6 +766,9 @@ class WeatherMosaicCard extends HTMLElement {
       ? `max-content repeat(${gapAfter}, minmax(0, 1fr)) ${gapPx}px repeat(${24 - gapAfter}, minmax(0, 1fr))`
       : '';
     const appendGap = () => { const s = document.createElement('div'); s.className = 'dn-gap'; mosaic.appendChild(s); };
+    // Sunrise-aligned grids also label midnight (12a) so the night portion on
+    // the right isn't left unlabeled.
+    const labeledHours = useGap ? [0, 6, 12, 18] : [6, 12, 18];
 
     const appendHoursRow = () => {
       mosaic.appendChild(document.createElement('div')); // spacer for day-label column
@@ -773,7 +776,7 @@ class WeatherMosaicCard extends HTMLElement {
         if (useGap && p === gapAfter) appendGap();
         const div = document.createElement('div');
         div.className = 'hour-label';
-        if ([6, 12, 18].includes(h)) {
+        if (labeledHours.includes(h)) {
           const span = document.createElement('span');
           span.textContent = this._formatHour(h);
           div.appendChild(span);
