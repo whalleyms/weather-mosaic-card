@@ -708,16 +708,10 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
-    if (this._config.layout === 'spiral') {
-      this._paintSpiral(grid, dayLabels, DAYS, nowHour);
-      return;
-    }
-
-    // Sunrise/sunset markers: thin vertical gaps at the sunrise and sunset
-    // columns of the standard midnight→midnight grid. Sunrise and sunset are
-    // computed from coordinates (or the `sunrise`/`sunset` hour overrides),
+    // Sunrise/sunset hours, shared by the grid gaps and the spiral markers.
+    // Computed from coordinates (or the `sunrise`/`sunset` hour overrides),
     // rounded to the nearest hour in the card's timezone.
-    let gapCols = [];
+    let sunrise = null, sunset = null;
     if (this._config.sun_gaps) {
       const roundHour = (d) => {
         let hm;
@@ -729,8 +723,8 @@ class WeatherMosaicCard extends HTMLElement {
         }
         return Math.round(hm) % 24;
       };
-      let sr = this._config.sunrise, ss = this._config.sunset;
-      if (sr == null || ss == null) {
+      sunrise = this._config.sunrise; sunset = this._config.sunset;
+      if (sunrise == null || sunset == null) {
         // Compute from coordinates — the card's own latitude/longitude if given,
         // else the Home Assistant location. Only fall back to the HA location for
         // a home-timezone card: a card with a different `timezone` is a remote
@@ -741,21 +735,26 @@ class WeatherMosaicCard extends HTMLElement {
         const lon = parseFloat(this._config.longitude ?? (homeLike ? this._hass?.config?.longitude : undefined));
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
           const t = sunTimes(new Date(), lat, lon);
-          if (sr == null && t.sunrise) sr = roundHour(t.sunrise);
-          if (ss == null && t.sunset)  ss = roundHour(t.sunset);
+          if (sunrise == null && t.sunrise) sunrise = roundHour(t.sunrise);
+          if (sunset == null && t.sunset)  sunset = roundHour(t.sunset);
         }
       }
-      // A gap sits before the sunrise column (night→day) and before the sunset
-      // column (day→night). Skip column 0 (a gap at the very left edge is moot).
-      [sr, ss].forEach(h => {
-        if (h == null || Number.isNaN(parseInt(h))) return;
-        const c = (((parseInt(h)) % 24) + 24) % 24;
-        if (c > 0 && !gapCols.includes(c)) gapCols.push(c);
-      });
-      gapCols.sort((a, b) => a - b);
+      const norm = (h) => (h == null || Number.isNaN(parseInt(h))) ? null : (((parseInt(h)) % 24) + 24) % 24;
+      sunrise = norm(sunrise); sunset = norm(sunset);
     }
     const gw = parseFloat(this._config.sun_gap_width);
     const gapPx = Number.isFinite(gw) ? Math.max(0, gw) : 2;
+
+    if (this._config.layout === 'spiral') {
+      this._paintSpiral(grid, dayLabels, DAYS, nowHour, sunrise, sunset, gapPx);
+      return;
+    }
+
+    // Grid: a gap before the sunrise column (night→day) and the sunset column
+    // (day→night). Skip column 0 (a gap at the very left edge is moot).
+    const gapCols = [];
+    [sunrise, sunset].forEach(c => { if (c != null && c > 0 && !gapCols.includes(c)) gapCols.push(c); });
+    gapCols.sort((a, b) => a - b);
     this._paintGrid(grid, dayLabels, DAYS, gapCols, gapPx);
   }
 
@@ -850,7 +849,7 @@ class WeatherMosaicCard extends HTMLElement {
   // an empty outer ring. It then winds inward over the remaining forecast at a
   // constant radial thickness per turn (a true Archimedean spiral); the natural
   // loss of circumference still makes turns further ahead cover less area.
-  _paintSpiral(grid, dayLabels, DAYS, nowHour) {
+  _paintSpiral(grid, dayLabels, DAYS, nowHour, sunrise = null, sunset = null, gapPx = 2) {
     const SIZE  = 1000;                 // viewBox units; the SVG scales to fit
     const cx    = SIZE / 2, cy = SIZE / 2;
     // `above`/`below` have no meaning on a circle — the labels always ring the
@@ -1003,11 +1002,25 @@ class WeatherMosaicCard extends HTMLElement {
              `dominant-baseline="central">${h === 0 ? 24 : h}</text>`;
     });
 
+    // Sunrise/sunset markers: radial gaps cutting across the spiral at the
+    // sunrise and sunset angles (the polar analog of the grid's column gaps).
+    // Drawn in the card background colour; non-scaling-stroke keeps the width in
+    // screen pixels regardless of how the SVG scales.
+    const sunGaps = (this._config.sun_gaps && gapPx > 0)
+      ? [sunrise, sunset].filter(h => h != null).map(h => {
+          const [x1, y1] = xy(R_IN, h / 24);
+          const [x2, y2] = xy(R_OUT + SIZE * 0.008, h / 24);
+          return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" ` +
+            `stroke="var(--ha-card-background, var(--card-background-color, #1c1c1c))" ` +
+            `stroke-width="${gapPx}" vector-effect="non-scaling-stroke" stroke-linecap="butt"/>`;
+        }).join('')
+      : '';
+
     const mosaic = this.shadowRoot.getElementById('grid');
     mosaic.className = 'spiral-wrap';
     mosaic.innerHTML =
       `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg" ` +
-      `shape-rendering="geometricPrecision">${cells.join('')}${labels.join('')}` +
+      `shape-rendering="geometricPrecision">${cells.join('')}${sunGaps}${labels.join('')}` +
       `${hours.join('')}</svg>`;
   }
 }

@@ -82,7 +82,7 @@
           },
           ...(extraStates || {}),
         },
-        config: { latitude: attrs.latitude, longitude: attrs.longitude },
+        config: { latitude: attrs.latitude, longitude: attrs.longitude, time_zone: attrs.timezone },
         connection: {
           subscribeMessage(callback) {
             Promise.resolve().then(() => callback({ forecast }));
@@ -209,8 +209,8 @@
     // future. Midnight sits at 12 o'clock on every ring, so the same hour lines
     // up radially across days. Bands taper inward = less certainty.
     addCard(
-      { entity: 'weather.sunnyvale', title: 'Spiral — 7 days',
-        layout: 'spiral', hours: 'above', time_format: '12' },
+      { entity: 'weather.sunnyvale', title: 'Spiral — 7 days (sun gaps)',
+        layout: 'spiral', sun_gaps: true, hours: 'above', time_format: '12' },
       makeMockHass('weather.sunnyvale', 'cloudy',
         { temperature: 62, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
         { baseTemp: 60, swing: 12, tzOffsetHours: -7,
