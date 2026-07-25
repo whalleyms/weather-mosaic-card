@@ -990,10 +990,9 @@ class WeatherMosaicCard extends HTMLElement {
       );
     }
 
-    // The spiral marks the even hours around its rim as a 24-hour clock face:
-    // midnight (labelled 24) at the top, running clockwise. This ring is
-    // spiral-only — the grid keeps its sparse above/below hour labels — and it
-    // ignores `time_format`, since a round clock reads naturally in 24h.
+    // The spiral marks the even hours around its rim as a clock face, midnight
+    // at the top, running clockwise. This ring is spiral-only (the grid keeps
+    // its sparse above/below hour labels) and follows `time_format`.
     // Each label follows the spiral's own outer edge at its hour angle — the
     // outermost ring present there — not a fixed circle, so it hugs the rim the
     // whole way around and steps at the "now" seam with the spiral itself.
@@ -1006,12 +1005,15 @@ class WeatherMosaicCard extends HTMLElement {
              `font-size="${hourFs}" text-anchor="middle" dominant-baseline="central">${esc(txt)}</text>`;
     };
     // Even-hour clock labels, minus any within an hour of a sun mark (overlap).
+    // Respects `time_format`: 24h shows 24/2/4… (24 at the top for midnight);
+    // 12h shows 12a/2a…12p/2p… via the shared hour formatter.
+    const ringHour = (h) => this._config.time_format === '12' ? this._formatHour(h) : (h === 0 ? 24 : h);
     const hours = !showHours ? [] : [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
       .filter(h => !sunCols.some(c => cdist(c, h) <= 1))
-      .map(h => ringLabel(h, h === 0 ? 24 : h));
-    // Exact sunrise/sunset times on the ring — 24h to match the clock face.
+      .map(h => ringLabel(h, ringHour(h)));
+    // Exact sunrise/sunset times on the ring, in the same 12/24 style.
     const sunLabels = (!showHours || !this._config.sun_gaps) ? []
-      : sunMarks.map(m => ringLabel(m.col, `${m.h}:${String(m.m).padStart(2, '0')}`));
+      : sunMarks.map(m => ringLabel(m.col, m.time));
 
     // Sunrise/sunset markers: radial gaps cutting across the spiral at the
     // sunrise and sunset angles (the polar analog of the grid's column gaps).
