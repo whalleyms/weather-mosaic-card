@@ -88,6 +88,30 @@ const COLOR_SCALES = {
   ],
 };
 
+// Sunrise/sunset (UTC Date objects) for a date and coordinates, via the
+// standard sunrise equation. Returns {} at the poles when the sun never
+// rises/sets that day. Longitude is degrees east; latitude degrees north.
+function sunTimes(date, lat, lon) {
+  const rad = Math.PI / 180, dayMs = 86400000;
+  const jdate = date.getTime() / dayMs + 2440587.5;      // Julian date
+  const n = Math.round(jdate - 2451545.0 + 0.0009);
+  const Jstar = n - lon / 360;                             // mean solar noon
+  const M = (357.5291 + 0.98560028 * Jstar) % 360;         // solar mean anomaly
+  const Mr = M * rad;
+  const C = 1.9148 * Math.sin(Mr) + 0.02 * Math.sin(2 * Mr) + 0.0003 * Math.sin(3 * Mr);
+  const lambda = (M + C + 282.9372) % 360;                 // ecliptic longitude
+  const lr = lambda * rad;
+  const Jtransit = 2451545.0 + Jstar + 0.0053 * Math.sin(Mr) - 0.0069 * Math.sin(2 * lr);
+  const delta = Math.asin(Math.sin(lr) * Math.sin(23.44 * rad)); // declination
+  const latR = lat * rad;
+  const cosw = (Math.sin(-0.833 * rad) - Math.sin(latR) * Math.sin(delta)) /
+               (Math.cos(latR) * Math.cos(delta));
+  if (cosw >= 1 || cosw <= -1) return {};                  // polar day / night
+  const w0 = Math.acos(cosw) / 360 * (180 / Math.PI);      // hour angle -> fraction of day
+  const toDate = (J) => new Date((J - 2440587.5) * dayMs);
+  return { sunrise: toDate(Jtransit - w0), sunset: toDate(Jtransit + w0) };
+}
+
 class WeatherMosaicCard extends HTMLElement {
 
   // -------------------------------------------------------------------------
@@ -705,10 +729,19 @@ class WeatherMosaicCard extends HTMLElement {
         }
         return Math.round(hm) % 24;
       };
-      const sun = this._hass?.states['sun.sun'];
       let sr = this._config.sunrise, ss = this._config.sunset;
-      if (sr == null && sun?.attributes?.next_rising) sr = roundHour(new Date(sun.attributes.next_rising));
-      if (ss == null && sun?.attributes?.next_setting) ss = roundHour(new Date(sun.attributes.next_setting));
+      if (sr == null || ss == null) {
+        // Compute from coordinates — the card's own latitude/longitude if given,
+        // else the Home Assistant location. Home cards need no configuration; a
+        // card for another location just needs its latitude/longitude.
+        const lat = parseFloat(this._config.latitude ?? this._hass?.config?.latitude);
+        const lon = parseFloat(this._config.longitude ?? this._hass?.config?.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          const t = sunTimes(new Date(), lat, lon);
+          if (sr == null && t.sunrise) sr = roundHour(t.sunrise);
+          if (ss == null && t.sunset)  ss = roundHour(t.sunset);
+        }
+      }
       sr = (((parseInt(sr ?? 6)) % 24) + 24) % 24;
       ss = (((parseInt(ss ?? 18)) % 24) + 24) % 24;
       order = Array.from({ length: 24 }, (_, p) => (sr + p) % 24);
