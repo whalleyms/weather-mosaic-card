@@ -117,7 +117,7 @@ These options are not shown in the visual editor but can be set in YAML:
 | `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
 | `spiral_gap` | number | `1` | _(Spiral layout only)_ Thickness of the gap between spiral turns, as a multiple of the default. `0` removes it (turns abut into a solid disk); `2` doubles it. |
 | `latitude` / `longitude` | number | _(HA location)_ | _(with `align_sunrise`)_ Coordinates used to compute sunrise/sunset. Defaults to your Home Assistant location; set both for a card showing a different place. |
-| `day_night_gap` | number | `1` | _(with `align_sunrise`)_ Width in pixels of the gap between the daytime and nighttime portions of the grid. |
+| `day_night_gap` | number | `3` | _(with `align_sunrise`)_ Width in pixels of the gap between the daytime and nighttime portions of the grid. |
 | `sunrise` / `sunset` | 0–23 | _(computed)_ | _(with `align_sunrise`)_ Force the sunrise/sunset hour directly, bypassing the coordinate calculation. Rarely needed. |
 | `custom_color_scale` | list | _(unset)_ | Define your own temperature→color stops, overriding `color_scale`. See [Custom Color Scale](#custom-color-scale). |
 | `precipitation_symbols` | list | _(unset)_ | Define your own precipitation markers and the conditions they appear under. See [Custom Precipitation Symbols](#custom-precipitation-symbols). |

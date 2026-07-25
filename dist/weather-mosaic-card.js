@@ -753,14 +753,14 @@ class WeatherMosaicCard extends HTMLElement {
       gapAfter = (ss - sr + 24) % 24; // number of daytime columns from the left
     }
     const g = parseFloat(this._config.day_night_gap);
-    const gapPx = Number.isFinite(g) ? Math.max(0, g) : 1;
+    const gapPx = Number.isFinite(g) ? Math.max(0, g) : 3;
     this._paintGrid(grid, dayLabels, DAYS, order, gapAfter, gapPx);
   }
 
   // -------------------------------------------------------------------------
   // Paint: rectangular grid (default) — one row per day, one column per hour
   // -------------------------------------------------------------------------
-  _paintGrid(grid, dayLabels, DAYS, order = HOURS, gapAfter = null, gapPx = 1) {
+  _paintGrid(grid, dayLabels, DAYS, order = HOURS, gapAfter = null, gapPx = 3) {
     const mosaic = this.shadowRoot.getElementById('grid');
     mosaic.className = 'mosaic-grid';
     mosaic.innerHTML = '';
