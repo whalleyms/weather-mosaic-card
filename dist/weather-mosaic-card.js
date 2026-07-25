@@ -737,10 +737,13 @@ class WeatherMosaicCard extends HTMLElement {
       let sr = this._config.sunrise, ss = this._config.sunset;
       if (sr == null || ss == null) {
         // Compute from coordinates — the card's own latitude/longitude if given,
-        // else the Home Assistant location. Home cards need no configuration; a
-        // card for another location just needs its latitude/longitude.
-        const lat = parseFloat(this._config.latitude ?? this._hass?.config?.latitude);
-        const lon = parseFloat(this._config.longitude ?? this._hass?.config?.longitude);
+        // else the Home Assistant location. Only fall back to the HA location for
+        // a home-timezone card: a card with a different `timezone` is a remote
+        // location where home coordinates would give the wrong sun times, so
+        // leave lat/lon unset (→ default hours) rather than be confidently wrong.
+        const homeLike = !tz || tz === this._hass?.config?.time_zone;
+        const lat = parseFloat(this._config.latitude ?? (homeLike ? this._hass?.config?.latitude : undefined));
+        const lon = parseFloat(this._config.longitude ?? (homeLike ? this._hass?.config?.longitude : undefined));
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
           const t = sunTimes(new Date(), lat, lon);
           if (sr == null && t.sunrise) sr = roundHour(t.sunrise);
