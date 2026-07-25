@@ -993,7 +993,7 @@ class WeatherMosaicCard extends HTMLElement {
     if (ct && this._config.show_current !== false) {
       const txt = `${ct.value}`;
       const nChars = Math.max(2, txt.length);          // don't oversize single digits
-      const centerFs = R_IN * 0.86 /
+      const centerFs = R_IN * 0.52 /
         Math.hypot(nChars * 0.6 / 2, 0.72 / 2);        // 0.6 = char width, 0.72 = cap height (per em)
       labels.push(
         `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" ` +
