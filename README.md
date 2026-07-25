@@ -107,7 +107,7 @@ These options are available in the card's visual editor:
 
 ### Advanced YAML Options
 
-These options are not shown in the visual editor but can be set in YAML:
+These options can be set in YAML. (`timezone`, `latitude` and `longitude` also appear in the visual editor once **Mark Sunrise & Sunset** is switched on.)
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -116,7 +116,7 @@ These options are not shown in the visual editor but can be set in YAML:
 | `font_scale` | number | `1.0` | Multiplier for font size. `1.2` = 20% larger, `0.8` = 20% smaller. |
 | `timezone` | string | Auto-detected | IANA timezone for the forecast location (e.g. `America/New_York`). Auto-detected from the entity's `timezone` attribute if present, otherwise uses local browser time. |
 | `spiral_gap` | number | `1` | _(Spiral layout only)_ Thickness of the gap between spiral turns, as a multiple of the default. `0` removes it (turns abut into a solid disk); `2` doubles it. |
-| `latitude` / `longitude` | number | _(HA location)_ | _(with `sun_gaps`)_ Coordinates used to compute sunrise/sunset. Defaults to your Home Assistant location; set both for a card showing a different place. |
+| `latitude` / `longitude` | number | _(auto)_ | _(with `sun_gaps`)_ Coordinates used to compute sunrise/sunset. Resolved automatically: a home-timezone card uses your Home Assistant location; a card with a different `timezone` uses that timezone's reference location. Set both to pin an exact spot (recommended for large timezones such as `America/New_York`, whose reference is New York City). |
 | `sun_gap_width` | number | `2` | _(with `sun_gaps`)_ Width in pixels of the sunrise/sunset gaps. |
 | `sunrise` / `sunset` | 0–23 | _(computed)_ | _(with `sun_gaps`)_ Force the sunrise/sunset hour directly, bypassing the coordinate calculation. Rarely needed. |
 | `custom_color_scale` | list | _(unset)_ | Define your own temperature→color stops, overriding `color_scale`. See [Custom Color Scale](#custom-color-scale). |
@@ -192,9 +192,12 @@ On the grid, a gap opens at the sunrise column and another at the sunset column,
 
 When the hour labels are shown, the **exact sunrise and sunset times** are printed at the gaps (in the same 12- or 24-hour style as the hour labels), replacing any hour label they would overlap.
 
-Sunrise and sunset are **computed from the location's coordinates and today's date**, rounded to the nearest hour. A card for your **home location needs no setup** — it uses your Home Assistant coordinates automatically. For a card showing **another location**, give it that place's `latitude` / `longitude` (plus its `timezone`, which the card already needs for the hour labels) — a one-time geographic fact, with no seasonal upkeep. The gap width is adjustable with `sun_gap_width` (pixels, default 2).
+Sunrise and sunset are **computed from the location's coordinates and today's date**, rounded to the nearest hour. Coordinates are resolved automatically, so most cards need **no geographic setup**:
 
-> **Remote cards:** if you set a `timezone` different from your Home Assistant instance's, you **must also set `latitude`/`longitude`**. The card won't fall back to your home coordinates there (that would place the sun at the wrong city) — so without them, no sun markers appear.
+- A card for your **home location** uses your Home Assistant coordinates.
+- A card with a **different `timezone`** (which a remote card needs anyway, for the hour labels) uses **that timezone's reference location** — so `timezone: Atlantic/Reykjavik` alone is enough to place the sun over Reykjavik.
+
+For a large timezone that spans many cities — `America/New_York` covers the whole US East and resolves to New York City — set `latitude` / `longitude` to pin the exact spot; the printed sunrise/sunset times can otherwise be off by a few minutes. Coordinates are a one-time geographic fact, with no seasonal upkeep. The gap width is adjustable with `sun_gap_width` (pixels, default 2).
 
 > Works on both the grid and the spiral. Everything else — color scales, precipitation symbols, min/max labels — is unchanged.
 

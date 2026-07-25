@@ -278,6 +278,19 @@
         { baseTemp: 60, swing: 10, tzOffsetHours: 1,
           conditions: ['partlycloudy','cloudy','rainy','partlycloudy','sunny','cloudy','rainy'] })
     );
+
+    // Remote (Reykjavik) — timezone only, NO lat/lon. hass.config is Sunnyvale,
+    // so this is a remote card: coordinates must be derived from the timezone's
+    // reference location (TZ_COORDS) and the sun gaps + HH:MM labels must appear.
+    addCard(
+      { entity: 'weather.reykjavik', title: 'Sun gaps — Reykjavik (timezone only, coords auto)',
+        sun_gaps: true, layout: 'spiral', timezone: 'Atlantic/Reykjavik',
+        days: 7, time_format: '24' },
+      makeMockHass('weather.reykjavik', 'cloudy',
+        { temperature: 55, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
+        { baseTemp: 52, swing: 8, tzOffsetHours: 0,
+          conditions: ['cloudy','rainy','cloudy','partlycloudy','cloudy','rainy','cloudy'] })
+    );
   </script>
 </body>
 </html>
