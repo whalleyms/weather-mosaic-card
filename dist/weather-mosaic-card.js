@@ -708,66 +708,63 @@ class WeatherMosaicCard extends HTMLElement {
       }
     }
 
-    // Sunrise/sunset hours, shared by the grid gaps and the spiral markers.
-    // Computed from coordinates (or the `sunrise`/`sunset` hour overrides),
-    // rounded to the nearest hour in the card's timezone.
-    let sunrise = null, sunset = null;
+    // Sunrise/sunset, shared by grid gaps and spiral markers. Each mark carries
+    // the rounded hour column (for the gap) and the exact HH:MM time for
+    // labeling. Computed from coordinates (or the `sunrise`/`sunset` overrides),
+    // for the current day, in the card's timezone.
+    let sunMarks = [];
     if (this._config.sun_gaps) {
-      const roundHour = (d) => {
-        let hm;
+      const tzHM = (d) => {
         if (tz) {
           const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d);
-          hm = parseInt(p.find(x => x.type === 'hour').value) + parseInt(p.find(x => x.type === 'minute').value) / 60;
-        } else {
-          hm = d.getHours() + d.getMinutes() / 60;
+          return { h: parseInt(p.find(x => x.type === 'hour').value), m: parseInt(p.find(x => x.type === 'minute').value) };
         }
-        return Math.round(hm) % 24;
+        return { h: d.getHours(), m: d.getMinutes() };
       };
-      sunrise = this._config.sunrise; sunset = this._config.sunset;
-      if (sunrise == null || sunset == null) {
-        // Compute from coordinates — the card's own latitude/longitude if given,
-        // else the Home Assistant location. Only fall back to the HA location for
-        // a home-timezone card: a card with a different `timezone` is a remote
-        // location where home coordinates would give the wrong sun times, so
-        // leave lat/lon unset rather than be confidently wrong.
+      const oride = (v) => (v == null || Number.isNaN(parseInt(v))) ? null : { h: (((parseInt(v)) % 24) + 24) % 24, m: 0 };
+      let srHM = oride(this._config.sunrise), ssHM = oride(this._config.sunset);
+      if (srHM == null || ssHM == null) {
+        // Coordinates — the card's own if given, else the Home Assistant
+        // location. Only fall back to the HA location for a home-timezone card;
+        // a card with a different `timezone` is a remote location where home
+        // coordinates would give the wrong sun times, so leave lat/lon unset.
         const homeLike = !tz || tz === this._hass?.config?.time_zone;
         const lat = parseFloat(this._config.latitude ?? (homeLike ? this._hass?.config?.latitude : undefined));
         const lon = parseFloat(this._config.longitude ?? (homeLike ? this._hass?.config?.longitude : undefined));
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
           const t = sunTimes(new Date(), lat, lon);
-          if (sunrise == null && t.sunrise) sunrise = roundHour(t.sunrise);
-          if (sunset == null && t.sunset)  sunset = roundHour(t.sunset);
+          if (srHM == null && t.sunrise) srHM = tzHM(t.sunrise);
+          if (ssHM == null && t.sunset)  ssHM = tzHM(t.sunset);
         }
       }
-      const norm = (h) => (h == null || Number.isNaN(parseInt(h))) ? null : (((parseInt(h)) % 24) + 24) % 24;
-      sunrise = norm(sunrise); sunset = norm(sunset);
+      // Label the exact time in the same 12/24 style as the hour labels.
+      const fmtTime = (h, m) => this._config.time_format === '12'
+        ? `${(h % 12) || 12}:${String(m).padStart(2, '0')}${h < 12 ? 'a' : 'p'}`
+        : `${h}:${String(m).padStart(2, '0')}`;
+      const toMark = (hm) => hm == null ? null : { col: Math.round(hm.h + hm.m / 60) % 24, time: fmtTime(hm.h, hm.m), h: hm.h, m: hm.m };
+      [toMark(srHM), toMark(ssHM)].forEach(mk => { if (mk) sunMarks.push(mk); });
     }
     const gw = parseFloat(this._config.sun_gap_width);
     const gapPx = Number.isFinite(gw) ? Math.max(0, gw) : 2;
 
     if (this._config.layout === 'spiral') {
-      this._paintSpiral(grid, dayLabels, DAYS, nowHour, sunrise, sunset, gapPx);
+      this._paintSpiral(grid, dayLabels, DAYS, nowHour, sunMarks, gapPx);
       return;
     }
-
-    // Grid: a gap before the sunrise column (night→day) and the sunset column
-    // (day→night). Skip column 0 (a gap at the very left edge is moot).
-    const gapCols = [];
-    [sunrise, sunset].forEach(c => { if (c != null && c > 0 && !gapCols.includes(c)) gapCols.push(c); });
-    gapCols.sort((a, b) => a - b);
-    this._paintGrid(grid, dayLabels, DAYS, gapCols, gapPx);
+    this._paintGrid(grid, dayLabels, DAYS, sunMarks, gapPx);
   }
 
   // -------------------------------------------------------------------------
   // Paint: rectangular grid (default) — one row per day, one column per hour
   // -------------------------------------------------------------------------
-  _paintGrid(grid, dayLabels, DAYS, gapCols = [], gapPx = 2) {
+  _paintGrid(grid, dayLabels, DAYS, sunMarks = [], gapPx = 2) {
     const mosaic = this.shadowRoot.getElementById('grid');
     mosaic.className = 'mosaic-grid';
     mosaic.innerHTML = '';
 
-    // Thin vertical gaps before the given hour columns (sunrise, sunset).
-    const gaps = (gapCols || []).filter(c => c > 0 && c < 24).sort((a, b) => a - b);
+    // Thin vertical gaps before the sunrise/sunset columns.
+    const marks = (sunMarks || []).filter(m => m && m.col > 0 && m.col < 24);
+    const gaps = marks.map(m => m.col).sort((a, b) => a - b);
     if (gaps.length) {
       const parts = ['max-content']; let prev = 0;
       for (const gc of gaps) { parts.push(`repeat(${gc - prev}, minmax(0, 1fr))`); parts.push(`${gapPx}px`); prev = gc; }
@@ -784,9 +781,15 @@ class WeatherMosaicCard extends HTMLElement {
         if (gaps.includes(h)) appendGap();
         const div = document.createElement('div');
         div.className = 'hour-label';
-        if ([6, 12, 18].includes(h)) {
+        // At a sunrise/sunset column show its exact time; otherwise the usual
+        // 6a/12p/6p label — unless it's next to a sun label, which would overlap.
+        const mark = marks.find(m => m.col === h);
+        let text = null;
+        if (mark) text = mark.time;
+        else if ([6, 12, 18].includes(h) && !marks.some(m => Math.abs(m.col - h) <= 1)) text = this._formatHour(h);
+        if (text != null) {
           const span = document.createElement('span');
-          span.textContent = this._formatHour(h);
+          span.textContent = text;
           div.appendChild(span);
         }
         mosaic.appendChild(div);
@@ -849,7 +852,7 @@ class WeatherMosaicCard extends HTMLElement {
   // an empty outer ring. It then winds inward over the remaining forecast at a
   // constant radial thickness per turn (a true Archimedean spiral); the natural
   // loss of circumference still makes turns further ahead cover less area.
-  _paintSpiral(grid, dayLabels, DAYS, nowHour, sunrise = null, sunset = null, gapPx = 2) {
+  _paintSpiral(grid, dayLabels, DAYS, nowHour, sunMarks = [], gapPx = 2) {
     const SIZE  = 1000;                 // viewBox units; the SVG scales to fit
     const cx    = SIZE / 2, cy = SIZE / 2;
     // `above`/`below` have no meaning on a circle — the labels always ring the
@@ -995,21 +998,29 @@ class WeatherMosaicCard extends HTMLElement {
     // outermost ring present there — not a fixed circle, so it hugs the rim the
     // whole way around and steps at the "now" seam with the spiral itself.
     const hourFs = (SIZE * 0.023 * scale).toFixed(1);
-    const hours  = !showHours ? [] : [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map(h => {
+    const sunCols = (this._config.sun_gaps ? sunMarks : []).map(m => m.col);
+    const cdist = (a, b) => { const d = Math.abs(a - b) % 24; return Math.min(d, 24 - d); };
+    const ringLabel = (h, txt) => {
       const [hx, hy] = xy(radius(outerPos(h / 24)) + SIZE * 0.032, h / 24);
       return `<text x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" class="spiral-label" ` +
-             `font-size="${hourFs}" text-anchor="middle" ` +
-             `dominant-baseline="central">${h === 0 ? 24 : h}</text>`;
-    });
+             `font-size="${hourFs}" text-anchor="middle" dominant-baseline="central">${esc(txt)}</text>`;
+    };
+    // Even-hour clock labels, minus any within an hour of a sun mark (overlap).
+    const hours = !showHours ? [] : [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+      .filter(h => !sunCols.some(c => cdist(c, h) <= 1))
+      .map(h => ringLabel(h, h === 0 ? 24 : h));
+    // Exact sunrise/sunset times on the ring — 24h to match the clock face.
+    const sunLabels = (!showHours || !this._config.sun_gaps) ? []
+      : sunMarks.map(m => ringLabel(m.col, `${m.h}:${String(m.m).padStart(2, '0')}`));
 
     // Sunrise/sunset markers: radial gaps cutting across the spiral at the
     // sunrise and sunset angles (the polar analog of the grid's column gaps).
     // Drawn in the card background colour; non-scaling-stroke keeps the width in
     // screen pixels regardless of how the SVG scales.
     const sunGaps = (this._config.sun_gaps && gapPx > 0)
-      ? [sunrise, sunset].filter(h => h != null).map(h => {
-          const [x1, y1] = xy(R_IN, h / 24);
-          const [x2, y2] = xy(R_OUT + SIZE * 0.008, h / 24);
+      ? sunMarks.map(m => {
+          const [x1, y1] = xy(R_IN, m.col / 24);
+          const [x2, y2] = xy(R_OUT + SIZE * 0.008, m.col / 24);
           return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" ` +
             `stroke="var(--ha-card-background, var(--card-background-color, #1c1c1c))" ` +
             `stroke-width="${gapPx}" vector-effect="non-scaling-stroke" stroke-linecap="butt"/>`;
@@ -1021,7 +1032,7 @@ class WeatherMosaicCard extends HTMLElement {
     mosaic.innerHTML =
       `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg" ` +
       `shape-rendering="geometricPrecision">${cells.join('')}${sunGaps}${labels.join('')}` +
-      `${hours.join('')}</svg>`;
+      `${hours.join('')}${sunLabels.join('')}</svg>`;
   }
 }
 
