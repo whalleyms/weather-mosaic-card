@@ -31,7 +31,7 @@ The design is inspired by Edward Tufte's principle of maximizing the data-to-ink
 
 Each cell represents one hour of one day. Cell color encodes temperature using your choice of color scale. Precipitation probability is shown as subtle markers within cells. Daily high and low temperatures are labeled directly on their peak cells. The card scales to fit any dashboard column width.
 
-Prefer a radial view? The [Spiral Layout](#spiral-layout) winds the same forecast into a spiral that gives near-term hours more space than distant ones — encoding forecast confidence as screen space.
+Prefer a radial view? The [Spiral Layout](#spiral-layout) winds the same forecast into a spiral that gives near-term hours more space than distant ones — encoding forecast confidence as screen space. Optionally, [Sunrise & Sunset Markers](#sunrise--sunset-markers) bracket the daylight hours on either layout, computed automatically for your location.
 
 ---
 
@@ -188,6 +188,8 @@ entity: weather.home
 sun_gaps: true
 ```
 
+<img src="https://raw.githubusercontent.com/whalleyms/weather-mosaic-card/main/assets/weather_mosaic_sun_gaps.png" alt="Weather Mosaic Card - sunrise and sunset markers on grid and spiral" width="820">
+
 On the grid, a gap opens at the sunrise column and another at the sunset column, so the daytime hours are visibly bracketed off from the night — a narrow band in winter, wide in summer. On the **spiral layout** the same markers appear as radial gaps at the sunrise and sunset angles, separating the daytime arc from the night arc.
 
 When the hour labels are shown, the **exact sunrise and sunset times** are printed at the gaps (in the same 12- or 24-hour style as the hour labels), replacing any hour label they would overlap.
@@ -215,7 +217,7 @@ For a large timezone that spans many cities — `America/New_York` covers the wh
 | `white_hot` | Thermal grayscale: coldest = black → hottest = white |
 | `black_hot` | Inverted thermal grayscale: coldest = white → hottest = black |
 
-All scales are calibrated for temperatures in °F. When `temperature_unit: C` is set, displayed labels are converted but the color mapping remains °F-based — set your HA weather integration to report in °F for best results.
+All scales are calibrated in °F. The card converts your entity's forecast to °F internally before mapping colors, so a °C-native integration is colored correctly with no setup. The `temperature_unit` option affects only the numbers shown on the labels, not the colors.
 
 ---
 
@@ -236,7 +238,7 @@ custom_color_scale:
 - You need at least **two** stops. Order doesn't matter — stops are sorted automatically.
 - Temperatures below your lowest stop take its color; above your highest, its color (no extrapolation).
 - When set, `custom_color_scale` **overrides** the named `color_scale`. If it's missing or malformed, the card silently falls back to `color_scale` (or `mosaic`).
-- Stops are matched against the same temperature values the built-in scales use, so define them in the unit your weather entity reports (°F for most US integrations).
+- Stops are matched against the same temperature values the built-in scales use — always **°F** — so define them in °F even if your weather entity reports °C (the card converts the forecast to °F before matching).
 
 ---
 

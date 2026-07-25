@@ -136,7 +136,8 @@
     A <a href="https://www.home-assistant.io/" style="color:#6b9fff">Home Assistant</a> dashboard card
     that displays a 7-day hourly weather forecast as a color-coded grid — one row per day,
     one cell per hour, temperature encoded as color so you can spot patterns at a glance.
-    Or wind it into a <strong style="color:#c7d0dc">spiral</strong> that gives near-term hours more space than distant ones.
+    Or wind it into a <strong style="color:#c7d0dc">spiral</strong> that gives near-term hours more space than distant ones,
+    and bracket the daylight hours with <strong style="color:#c7d0dc">sunrise &amp; sunset markers</strong>.
   </p>
   <div class="badges">
     <a href="https://github.com/whalleyms/weather-mosaic-card/releases/latest">
@@ -149,7 +150,7 @@
       <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT license">
     </a>
     <a href="https://hacs.xyz">
-      <img src="https://img.shields.io/badge/HACS-Custom-41BDF5?style=flat-square" alt="HACS">
+      <img src="https://img.shields.io/badge/HACS-Default-41BDF5?style=flat-square" alt="HACS">
     </a>
   </div>
 </div>
@@ -164,6 +165,18 @@
     edge small and quiet. Midnight is always at 12 o'clock and the current temperature sits in the center.
   </p>
   <div class="cards" id="spiral"></div>
+</div>
+
+<!-- Sunrise & sunset markers showcase -->
+<div class="section">
+  <p class="section-label">Sunrise &amp; Sunset Markers</p>
+  <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;max-width:760px;margin:-4px 0 20px;">
+    Switch on <code style="color:#c7d0dc">sun_gaps</code> to open thin gaps at sunrise and sunset,
+    bracketing the daylight hours — a narrow band in winter, wide in summer — with the exact times
+    printed at each gap. Sunrise and sunset are computed automatically from your location, and the
+    markers work on both the grid and the spiral.
+  </p>
+  <div class="cards" id="sungaps"></div>
 </div>
 
 <!-- Color scale showcase -->
@@ -232,7 +245,7 @@ function makeMockHass(entityId, currentCondition, attrs, forecastOpts) {
         attributes: { temperature_unit: '°F', ...attrs },
       },
     },
-    config: { latitude: attrs.latitude, longitude: attrs.longitude },
+    config: { latitude: attrs.latitude, longitude: attrs.longitude, time_zone: attrs.timezone },
     connection: {
       subscribeMessage(callback) {
         Promise.resolve().then(() => callback({ forecast }));
@@ -258,7 +271,7 @@ function addCard(containerId, config, hass, caption) {
 }
 
 // ---------------------------------------------------------------------------
-// Color scale showcase — same location, all five scales
+// Color scale showcase — same location, every scale
 // ---------------------------------------------------------------------------
 const sunnyvaleHass = (entityId) => makeMockHass(entityId, 'partlycloudy',
   { temperature: 64, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
@@ -272,6 +285,8 @@ const scales = [
   { scale: 'turbo',    label: 'turbo — perceptually uniform' },
   { scale: 'viridis',  label: 'viridis — colorblind-safe' },
   { scale: 'inferno',  label: 'inferno — high contrast, dark-theme friendly' },
+  { scale: 'white_hot', label: 'white_hot — thermal grayscale, coldest black → hottest white' },
+  { scale: 'black_hot', label: 'black_hot — inverted thermal, coldest white → hottest black' },
 ];
 
 scales.forEach(({ scale, label }) => {
@@ -309,6 +324,27 @@ addCard('spiral',
     { baseTemp: 12, swing: 6, tzOffsetHours: 1, trend: -1, wave: 3,
       conditions: ['cloudy','rainy','partlycloudy','cloudy','rainy','rainy','cloudy'] }),
   'Celsius — center temperature and forecast in °C, blue_red scale'
+);
+
+// ---------------------------------------------------------------------------
+// Sunrise & sunset markers — grid and spiral
+// ---------------------------------------------------------------------------
+const denverSunHass = () => makeMockHass('weather.sun_demo', 'sunny',
+  { temperature: 58, latitude: 39.74, longitude: -104.98, timezone: 'America/Denver' },
+  { baseTemp: 58, swing: 20, tzOffsetHours: -6, trend: 1, wave: 6,
+    conditions: ['sunny','sunny','partlycloudy','cloudy','rainy','partlycloudy','sunny'] }
+);
+
+addCard('sungaps',
+  { entity: 'weather.sun_demo', title: 'Denver, CO', sun_gaps: true, hours: 'above', time_format: '12' },
+  denverSunHass(),
+  'Grid — gaps at the sunrise and sunset columns, with the exact times labelled'
+);
+
+addCard('sungaps',
+  { entity: 'weather.sun_demo', title: 'Denver, CO', layout: 'spiral', sun_gaps: true, time_format: '12' },
+  denverSunHass(),
+  'Spiral — the same markers as radial gaps, separating the day arc from the night'
 );
 
 // ---------------------------------------------------------------------------
