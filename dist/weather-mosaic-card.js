@@ -742,7 +742,10 @@ class WeatherMosaicCard extends HTMLElement {
         ? `${(h % 12) || 12}:${String(m).padStart(2, '0')}${h < 12 ? 'a' : 'p'}`
         : `${h}:${String(m).padStart(2, '0')}`;
       const toMark = (hm) => hm == null ? null : { col: Math.round(hm.h + hm.m / 60) % 24, time: fmtTime(hm.h, hm.m), h: hm.h, m: hm.m };
-      [toMark(srHM), toMark(ssHM)].forEach(mk => { if (mk) sunMarks.push(mk); });
+      // Dedupe by column: if sunrise and sunset round to the same hour (extreme
+      // latitude near the polar-day boundary, or a same-hour override), keep one
+      // mark so painters don't emit a zero-width column / doubled label.
+      [toMark(srHM), toMark(ssHM)].forEach(mk => { if (mk && !sunMarks.some(x => x.col === mk.col)) sunMarks.push(mk); });
     }
     const gw = parseFloat(this._config.sun_gap_width);
     const gapPx = Number.isFinite(gw) ? Math.max(0, gw) : 2;
@@ -762,18 +765,22 @@ class WeatherMosaicCard extends HTMLElement {
     mosaic.className = 'mosaic-grid';
     mosaic.innerHTML = '';
 
-    // Thin vertical gaps before the sunrise/sunset columns.
-    const marks = (sunMarks || []).filter(m => m && m.col > 0 && m.col < 24);
+    // Thin vertical gaps before the sunrise/sunset columns (0–23, deduped).
+    const marks = (sunMarks || []).filter(m => m && m.col >= 0 && m.col <= 23);
     const gaps = marks.map(m => m.col).sort((a, b) => a - b);
     if (gaps.length) {
       const parts = ['max-content']; let prev = 0;
-      for (const gc of gaps) { parts.push(`repeat(${gc - prev}, minmax(0, 1fr))`); parts.push(`${gapPx}px`); prev = gc; }
-      parts.push(`repeat(${24 - prev}, minmax(0, 1fr))`);
+      for (const gc of gaps) {
+        if (gc - prev > 0) parts.push(`repeat(${gc - prev}, minmax(0, 1fr))`); // no repeat(0)
+        parts.push(`${gapPx}px`);
+        prev = gc;
+      }
+      if (24 - prev > 0) parts.push(`repeat(${24 - prev}, minmax(0, 1fr))`);
       mosaic.style.gridTemplateColumns = parts.join(' ');
     } else {
       mosaic.style.gridTemplateColumns = '';
     }
-    const appendGap = () => { const s = document.createElement('div'); s.className = 'dn-gap'; mosaic.appendChild(s); };
+    const appendGap = () => { const s = document.createElement('div'); s.className = 'sun-gap'; mosaic.appendChild(s); };
 
     const appendHoursRow = () => {
       mosaic.appendChild(document.createElement('div')); // spacer for day-label column

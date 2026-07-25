@@ -194,6 +194,8 @@ When the hour labels are shown, the **exact sunrise and sunset times** are print
 
 Sunrise and sunset are **computed from the location's coordinates and today's date**, rounded to the nearest hour. A card for your **home location needs no setup** — it uses your Home Assistant coordinates automatically. For a card showing **another location**, give it that place's `latitude` / `longitude` (plus its `timezone`, which the card already needs for the hour labels) — a one-time geographic fact, with no seasonal upkeep. The gap width is adjustable with `sun_gap_width` (pixels, default 2).
 
+> **Remote cards:** if you set a `timezone` different from your Home Assistant instance's, you **must also set `latitude`/`longitude`**. The card won't fall back to your home coordinates there (that would place the sun at the wrong city) — so without them, no sun markers appear.
+
 > Works on both the grid and the spiral. Everything else — color scales, precipitation symbols, min/max labels — is unchanged.
 
 ---
