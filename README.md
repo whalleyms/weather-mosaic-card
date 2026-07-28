@@ -16,7 +16,7 @@ A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that di
   <a href="https://whalleyms.github.io/weather-mosaic-card/"><img src="https://img.shields.io/badge/%E2%96%B6%20Try%20it%20with%20your%20weather-live%20demo-3b82f6?style=for-the-badge" alt="Try it with your weather — live demo" width="632"></a>
 </p>
 
-Enter your city on the [**live demo**](https://whalleyms.github.io/weather-mosaic-card/) and see your own next 7 days rendered by the card — no install needed.
+**See it with your own weather before installing anything.** Open the [**live demo**](https://whalleyms.github.io/weather-mosaic-card/), type in your city (anywhere in the world), and it renders your real next 7 days right in the browser — grid and spiral, light or dark.
 
 ![Weather Mosaic Card — a week of hourly weather as a color-coded grid](assets/weather_mosaic_hero_grid.png)
 
