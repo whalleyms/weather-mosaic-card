@@ -10,12 +10,19 @@
   <a href="https://github.com/whalleyms/weather-mosaic-card/blob/main/LICENSE"><img src="https://img.shields.io/github/license/whalleyms/weather-mosaic-card" alt="License"></a>
 </p>
 
-A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that displays a 7-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, letting you spot daily patterns, hot afternoons, cool nights, and rainy periods at a glance.
+A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that displays a multi-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, letting you spot daily patterns, hot afternoons, cool nights, and rainy periods at a glance. Prefer a radial view? Wind the same forecast into a **spiral** that gives near-term hours more space. Optionally, mark **sunrise and sunset** on either layout.
 
 **[Preview →](https://whalleyms.github.io/weather-mosaic-card/)**
 
-![Weather Mosaic Card - light theme](assets/weather_mosaic_white.png)
-![Weather Mosaic Card - dark theme](assets/weather_mosaic_black.png)
+![Weather Mosaic Card — a week of hourly weather as a color-coded grid](assets/weather_mosaic_hero_grid.png)
+
+<sub>The color-mosaic **grid** — a week of hourly temperature at a glance, with daily highs/lows and precipitation markers.</sub>
+
+<p align="center">
+  <img src="assets/weather_mosaic_hero_spiral.png" alt="Weather Mosaic Card — the same forecast as a spiral, with sunrise and sunset markers" width="480">
+</p>
+
+<sub>The same forecast wound into a **spiral** — near-term hours get more room, the current temperature reads from the center, and **sunrise/sunset** show as radial gaps (here 5:55a and 8:17p).</sub>
 
 ---
 
@@ -32,6 +39,13 @@ The design is inspired by Edward Tufte's principle of maximizing the data-to-ink
 Each cell represents one hour of one day. Cell color encodes temperature using your choice of color scale. Precipitation probability is shown as subtle markers within cells. Daily high and low temperatures are labeled directly on their peak cells. The card scales to fit any dashboard column width.
 
 Prefer a radial view? The [Spiral Layout](#spiral-layout) winds the same forecast into a spiral that gives near-term hours more space than distant ones — encoding forecast confidence as screen space. Optionally, [Sunrise & Sunset Markers](#sunrise--sunset-markers) bracket the daylight hours on either layout, computed automatically for your location.
+
+The card is fully theme-aware — it renders in light or dark to match your dashboard:
+
+<p>
+  <img src="assets/weather_mosaic_white.png" alt="Weather Mosaic Card in a light theme" width="420">
+  <img src="assets/weather_mosaic_black.png" alt="Weather Mosaic Card in a dark theme" width="420">
+</p>
 
 ---
 
