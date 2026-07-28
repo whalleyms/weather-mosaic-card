@@ -23,7 +23,7 @@ A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that di
 <sub>The color-mosaic **grid** — a week of hourly temperature at a glance, with daily highs/lows and precipitation markers.</sub>
 
 <p align="center">
-  <img src="assets/weather_mosaic_hero_spiral.png" alt="Weather Mosaic Card — the same forecast as a spiral, with sunrise and sunset markers" width="480">
+  <img src="https://raw.githubusercontent.com/whalleyms/weather-mosaic-card/main/assets/weather_mosaic_hero_spiral.png" alt="Weather Mosaic Card — the same forecast as a spiral, with sunrise and sunset markers" width="480">
 </p>
 
 <sub>The same forecast wound into a **spiral** — near-term hours get more room, the current temperature reads from the center, and **sunrise/sunset** show as radial gaps (here 5:55a and 8:17p).</sub>
@@ -47,8 +47,8 @@ The [Spiral Layout](#spiral-layout) winds the same forecast into a spiral that g
 The card is fully theme-aware — it renders in light or dark to match your dashboard:
 
 <p>
-  <img src="assets/weather_mosaic_white.png" alt="Weather Mosaic Card in a light theme" width="420">
-  <img src="assets/weather_mosaic_black.png" alt="Weather Mosaic Card in a dark theme" width="420">
+  <img src="https://raw.githubusercontent.com/whalleyms/weather-mosaic-card/main/assets/weather_mosaic_white.png" alt="Weather Mosaic Card in a light theme" width="420">
+  <img src="https://raw.githubusercontent.com/whalleyms/weather-mosaic-card/main/assets/weather_mosaic_black.png" alt="Weather Mosaic Card in a dark theme" width="420">
 </p>
 
 ---
