@@ -10,7 +10,7 @@
   <a href="https://github.com/whalleyms/weather-mosaic-card/blob/main/LICENSE"><img src="https://img.shields.io/github/license/whalleyms/weather-mosaic-card" alt="License"></a>
 </p>
 
-A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that displays a multi-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, letting you spot daily patterns, hot afternoons, cool nights, and rainy periods at a glance. Prefer a radial view? Wind the same forecast into a **spiral** that gives near-term hours more space. Optionally, mark **sunrise and sunset** on either layout.
+A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that displays a multi-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, so patterns jump out — hot afternoons, cool nights, a rainy stretch mid-week. The same forecast can also wind into a **spiral** that gives near-term hours more space, and either layout can mark **sunrise and sunset**.
 
 **[Preview →](https://whalleyms.github.io/weather-mosaic-card/)**
 
@@ -28,17 +28,17 @@ A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that di
 
 ## Design
 
-Most weather displays are cluttered — icons, numbers, labels, legends competing for attention. This card takes a different approach: encode everything into color and let the eye do the work.
+Most weather cards are cluttered — icons, numbers, labels, and legends all fighting for attention. I wanted the opposite: put the whole forecast into color and let your eye do the work.
 
 The complete 7-day hourly forecast fits in a single glance. This is possible because daily temperatures follow a strongly predictable diurnal cycle — cool before dawn, warming through the morning, peaking mid-afternoon, falling through the evening — and that rhythm maps naturally onto the grid. But the display also captures multi-day patterns: heat waves appear as broad warm patches, cold fronts as abrupt color shifts, rainy stretches as clusters of precipitation markers spanning several rows. Your mind quickly adapts to these patterns, enabling you to read a week of weather in one eyespan.
 
-The design is inspired by Edward Tufte's principle of maximizing the data-to-ink ratio: show as much information as possible with as little visual noise as possible. It has been refined over several years, first as a [MagicMirror](https://magicmirror.builders/) module and now as a Home Assistant card. It works especially well as a kiosk or always-on display where you want to glance at the forecast without having to physically interact.
+The idea comes from Edward Tufte's data-to-ink ratio: as much information as possible, as little visual noise as possible. I've been refining this one for years — it started as a [MagicMirror](https://magicmirror.builders/) module and became a Home Assistant card. It works best on a kiosk or always-on display, where you want to read the forecast across the room without touching anything.
 
 ## How It Works
 
 Each cell represents one hour of one day. Cell color encodes temperature using your choice of color scale. Precipitation probability is shown as subtle markers within cells. Daily high and low temperatures are labeled directly on their peak cells. The card scales to fit any dashboard column width.
 
-Prefer a radial view? The [Spiral Layout](#spiral-layout) winds the same forecast into a spiral that gives near-term hours more space than distant ones — encoding forecast confidence as screen space. Optionally, [Sunrise & Sunset Markers](#sunrise--sunset-markers) bracket the daylight hours on either layout, computed automatically for your location.
+The [Spiral Layout](#spiral-layout) winds the same forecast into a spiral that gives near-term hours more space than distant ones, encoding forecast confidence as screen space. Optionally, [Sunrise & Sunset Markers](#sunrise--sunset-markers) bracket the daylight hours on either layout, computed automatically for your location.
 
 The card is fully theme-aware — it renders in light or dark to match your dashboard:
 
@@ -244,7 +244,7 @@ All scales are calibrated in °F. The card converts your entity's forecast to °
 
 ## Custom Color Scale
 
-Not happy with the built-in scales? Define your own with the advanced `custom_color_scale` option (YAML only — it isn't in the visual editor). It takes a list of `[temperature, color]` stops, and the card interpolates between them exactly like a built-in scale. Colors may be hex strings or `[r, g, b]` arrays:
+You can define your own scale with the advanced `custom_color_scale` option (YAML only — it isn't in the visual editor). It takes a list of `[temperature, color]` stops, and the card interpolates between them exactly like a built-in scale. Colors may be hex strings or `[r, g, b]` arrays:
 
 ```yaml
 type: custom:weather-mosaic-card
