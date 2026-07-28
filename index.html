@@ -10,14 +10,28 @@
       --ha-card-background: #1e2635; --card-background-color: #1e2635;
       --primary-text-color: #e1e7ef; --secondary-text-color: #8a95a3;
       --ha-card-header-color: #f0f4f8; --divider-color: #2d3748; --error-color: #ef4444;
-      --accent: #6b9fff;
+      --accent: #6b9fff; --on-accent: #0b1220;
+      --page-bg: #111827; --page-fg: #e1e7ef; --heading: #f9fafb;
+      --muted: #9ca3af; --muted2: #6b7280;
+      --input-bg: #0f172a; --panel-bg: #1f2937; --line: #1f2937;
+      --code-bg: #0b1220; --code-fg: #d5deea; --card-shadow: rgba(0,0,0,0.4);
+    }
+    :root[data-theme="light"] {
+      --ha-card-background: #ffffff; --card-background-color: #ffffff;
+      --primary-text-color: #1c1c1c; --secondary-text-color: #6b7280;
+      --ha-card-header-color: #111827; --divider-color: #e5e7eb;
+      --accent: #2563eb; --on-accent: #ffffff;
+      --page-bg: #f3f4f6; --page-fg: #1f2937; --heading: #0f172a;
+      --muted: #6b7280; --muted2: #9ca3af;
+      --input-bg: #ffffff; --panel-bg: #ffffff; --line: #e5e7eb;
+      --code-bg: #f8fafc; --code-fg: #334155; --card-shadow: rgba(0,0,0,0.12);
     }
     *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; background: #111827; color: #e1e7ef;
+    body { margin: 0; background: var(--page-bg); color: var(--page-fg);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .page { max-width: 1100px; margin: 0 auto; padding: 44px 20px 64px; }
-    h1 { font-size: 1.8rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 8px; color: #f9fafb; }
-    .sub { color: #9ca3af; font-size: 0.95rem; line-height: 1.6; margin: 0 0 12px; max-width: 660px; }
+    h1 { font-size: 1.8rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 8px; color: var(--heading); }
+    .sub { color: var(--muted); font-size: 0.95rem; line-height: 1.6; margin: 0 0 12px; max-width: 660px; }
     .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
     .badges a { text-decoration: none; }
     .badges img { height: 20px; display: block; }
@@ -25,32 +39,32 @@
     .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
     .search { display: flex; gap: 8px; flex: 1 1 320px; min-width: 260px; }
     input[type=text] { flex: 1; padding: 10px 12px; border: 1px solid var(--divider-color); border-radius: 8px;
-      background: #0f172a; color: #e1e7ef; font-size: 1rem; }
+      background: var(--input-bg); color: var(--page-fg); font-size: 1rem; }
     input[type=text]:focus { outline: none; border-color: var(--accent); }
     button { padding: 10px 14px; border: 1px solid var(--divider-color); border-radius: 8px; cursor: pointer;
-      background: #1f2937; color: #e1e7ef; font-size: 0.92rem; white-space: nowrap; }
+      background: var(--panel-bg); color: var(--page-fg); font-size: 0.92rem; white-space: nowrap; }
     button:hover { border-color: var(--accent); }
-    button.primary { background: var(--accent); border-color: var(--accent); color: #0b1220; font-weight: 600; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 
     .opts { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 14px 0 6px;
-      font-size: 0.85rem; color: #9ca3af; }
+      font-size: 0.85rem; color: var(--muted); }
     .opts label { display: inline-flex; align-items: center; gap: 6px; }
     select { padding: 5px 8px; border: 1px solid var(--divider-color); border-radius: 6px;
-      background: #0f172a; color: #e1e7ef; font-size: 0.85rem; }
+      background: var(--input-bg); color: var(--page-fg); font-size: 0.85rem; }
 
     .matches { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 4px; }
-    .match { text-align: left; background: #0f172a; }
-    .match small { color: #8a95a3; }
+    .match { text-align: left; background: var(--input-bg); }
+    .match small { color: var(--secondary-text-color); }
 
-    .status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #9ca3af;
+    .status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--muted);
       min-height: 1.4em; margin: 12px 0; }
-    .status.err { color: #f87171; }
-    .spinner { width: 15px; height: 15px; border: 2px solid #374151; border-top-color: var(--accent);
+    .status.err { color: #dc2626; }
+    .spinner { width: 15px; height: 15px; border: 2px solid var(--divider-color); border-top-color: var(--accent);
       border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     ha-card { display: block; background: var(--ha-card-background); border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.4); overflow: hidden; }
+      box-shadow: 0 2px 12px var(--card-shadow); overflow: hidden; }
     weather-mosaic-card { display: block; }
     #cards { margin-top: 12px; display: flex; flex-direction: column; gap: 20px; align-items: center; }
     #cards .grid-wrap { width: 100%; }
@@ -58,30 +72,30 @@
 
     .yaml { margin-top: 22px; border: 1px solid var(--divider-color); border-radius: 10px; overflow: hidden; }
     .yaml-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px;
-      background: #0f172a; font-size: 0.8rem; color: #9ca3af; }
-    .yaml pre { margin: 0; padding: 12px 14px; background: #0b1220; color: #d5deea; overflow-x: auto;
+      background: var(--input-bg); font-size: 0.8rem; color: var(--muted); }
+    .yaml pre { margin: 0; padding: 12px 14px; background: var(--code-bg); color: var(--code-fg); overflow-x: auto;
       font-size: 0.82rem; line-height: 1.55; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .yaml button { padding: 5px 10px; font-size: 0.78rem; }
 
     .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
-      color: #6b7280; margin: 0 0 12px; }
-    hr.div { border: 0; border-top: 1px solid #1f2937; margin: 48px 0 36px; }
+      color: var(--muted2); margin: 0 0 12px; }
+    hr.div { border: 0; border-top: 1px solid var(--line); margin: 48px 0 36px; }
     .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 18px; }
-    .cap { font-size: 0.72rem; color: #9ca3af; margin-top: 6px; padding: 0 2px; }
+    .cap { font-size: 0.72rem; color: var(--muted); margin-top: 6px; padding: 0 2px; }
 
-    footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1f2937;
-      color: #6b7280; font-size: 0.78rem; line-height: 1.7; }
-    footer a { color: #6b7280; }
+    footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line);
+      color: var(--muted2); font-size: 0.78rem; line-height: 1.7; }
+    footer a { color: var(--muted2); }
     footer .links { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 10px; }
-    footer .links a { color: #4b5563; text-decoration: none; }
-    footer .links a:hover { color: #9ca3af; }
-    code { background: #0f172a; padding: 1px 5px; border-radius: 4px; }
+    footer .links a { color: var(--muted2); text-decoration: none; }
+    footer .links a:hover { color: var(--accent); }
+    code { background: var(--input-bg); padding: 1px 5px; border-radius: 4px; }
   </style>
 </head>
 <body>
 <div class="page">
   <h1>Weather Mosaic Card — live preview</h1>
-  <p class="sub">A <a href="https://www.home-assistant.io/" style="color:#6b9fff">Home Assistant</a>
+  <p class="sub">A <a href="https://www.home-assistant.io/" style="color:var(--accent)">Home Assistant</a>
     dashboard card that shows a week of hourly weather as a color grid — or a spiral. Enter a city anywhere
     in the world, or use your location, and see your own next 7 days rendered with a real forecast.</p>
   <div class="badges">
@@ -100,6 +114,9 @@
   <div class="matches" id="matches"></div>
 
   <div class="opts">
+    <label>Theme
+      <select id="theme"><option value="dark">Dark</option><option value="light">Light</option></select>
+    </label>
     <label>Units
       <select id="units"><option value="F">°F</option><option value="C">°C</option></select>
     </label>
@@ -151,6 +168,17 @@ let state = null; // { place, forecast, cur, tz, lat, lon }
 const isUS = (navigator.language || '').toLowerCase().includes('us');
 $('units').value = isUS ? 'F' : 'C';
 $('tf').value = isUS ? '12' : '24';
+
+// Light/dark theme (white vs black background). Persisted; defaults to the
+// visitor's OS color-scheme preference.
+function applyTheme(t, rerender) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('wmc-theme', t); } catch (e) {}
+  if (rerender) { render(); buildGallery(); }
+}
+const savedTheme = (() => { try { return localStorage.getItem('wmc-theme'); } catch (e) { return null; } })();
+const initTheme = savedTheme
+  || (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 
 function setStatus(text, isErr, busy) {
   $('statustext').textContent = text || '';
@@ -334,6 +362,7 @@ function useMyLocation() {
 
 // --- Color-scale gallery (synthetic, always renders) -----------------------
 function buildGallery() {
+  $('gallery').innerHTML = '';
   const scales = [
     ['mosaic', 'mosaic — multi-color (default)'],
     ['turbo', 'turbo — perceptually uniform'],
@@ -358,12 +387,15 @@ $('go').onclick = doSearch;
 $('q').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 $('geo').onclick = useMyLocation;
 ['units', 'tf', 'scale', 'sun'].forEach(id => $(id).addEventListener('change', render));
+$('theme').addEventListener('change', e => applyTheme(e.target.value, true));
 $('copy').onclick = () => {
   navigator.clipboard.writeText($('yaml').textContent).then(() => {
     $('copy').textContent = 'Copied!'; setTimeout(() => $('copy').textContent = 'Copy', 1500);
   });
 };
 
+$('theme').value = initTheme;
+applyTheme(initTheme, false);
 updateYaml();
 buildGallery();
 $('q').value = 'London';
