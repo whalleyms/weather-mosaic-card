@@ -700,7 +700,7 @@ class WeatherMosaicCard extends HTMLElement {
           e.isHigh   = true;
           highMarked = { entry: e, hour: h };
         }
-        if (d !== 0 && e.temp === mn) {
+        if (e.temp === mn) {
           if (lowMarked) lowMarked.entry.isLow = false;
           e.isLow   = true;
           lowMarked = { entry: e, hour: h };
