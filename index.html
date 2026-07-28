@@ -3,427 +3,371 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Weather Mosaic Card</title>
+  <title>Weather Mosaic Card — Live Preview</title>
   <script src="dist/weather-mosaic-card.js"></script>
   <style>
     :root {
-      --ha-card-background: #1e2635;
-      --card-background-color: #1e2635;
-      --primary-text-color: #e1e7ef;
-      --secondary-text-color: #8a95a3;
-      --ha-card-header-color: #f0f4f8;
-      --divider-color: #2d3748;
-      --error-color: #ef4444;
+      --ha-card-background: #1e2635; --card-background-color: #1e2635;
+      --primary-text-color: #e1e7ef; --secondary-text-color: #8a95a3;
+      --ha-card-header-color: #f0f4f8; --divider-color: #2d3748; --error-color: #ef4444;
+      --accent: #6b9fff;
     }
-
     *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #111827; color: #e1e7ef;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 44px 20px 64px; }
+    h1 { font-size: 1.8rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 8px; color: #f9fafb; }
+    .sub { color: #9ca3af; font-size: 0.95rem; line-height: 1.6; margin: 0 0 12px; max-width: 660px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    .badges a { text-decoration: none; }
+    .badges img { height: 20px; display: block; }
 
-    body {
-      margin: 0;
-      padding: 0;
-      background: #111827;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: #e1e7ef;
-      min-height: 100vh;
-    }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .search { display: flex; gap: 8px; flex: 1 1 320px; min-width: 260px; }
+    input[type=text] { flex: 1; padding: 10px 12px; border: 1px solid var(--divider-color); border-radius: 8px;
+      background: #0f172a; color: #e1e7ef; font-size: 1rem; }
+    input[type=text]:focus { outline: none; border-color: var(--accent); }
+    button { padding: 10px 14px; border: 1px solid var(--divider-color); border-radius: 8px; cursor: pointer;
+      background: #1f2937; color: #e1e7ef; font-size: 0.92rem; white-space: nowrap; }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #0b1220; font-weight: 600; }
 
-    /* ---- page chrome ---- */
-    .page-header {
-      padding: 48px 32px 32px;
-      max-width: 1300px;
-      margin: 0 auto;
-    }
-    .page-header h1 {
-      margin: 0 0 8px;
-      font-size: 1.8rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      color: #f9fafb;
-    }
-    .page-header p {
-      margin: 0 0 20px;
-      color: #9ca3af;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      max-width: 640px;
-    }
-    .badges {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .badges a {
-      text-decoration: none;
-    }
-    .badges img {
-      height: 20px;
-      display: block;
-    }
+    .opts { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 14px 0 6px;
+      font-size: 0.85rem; color: #9ca3af; }
+    .opts label { display: inline-flex; align-items: center; gap: 6px; }
+    select { padding: 5px 8px; border: 1px solid var(--divider-color); border-radius: 6px;
+      background: #0f172a; color: #e1e7ef; font-size: 0.85rem; }
 
-    /* ---- section titles ---- */
-    .section {
-      padding: 0 32px 40px;
-      max-width: 1300px;
-      margin: 0 auto;
-    }
-    .section-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: #6b7280;
-      margin: 0 0 12px;
-    }
+    .matches { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 4px; }
+    .match { text-align: left; background: #0f172a; }
+    .match small { color: #8a95a3; }
 
-    /* ---- card grid ---- */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
-      gap: 20px;
-    }
-    .cards.wide {
-      grid-template-columns: repeat(auto-fill, minmax(640px, 1fr));
-    }
+    .status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #9ca3af;
+      min-height: 1.4em; margin: 12px 0; }
+    .status.err { color: #f87171; }
+    .spinner { width: 15px; height: 15px; border: 2px solid #374151; border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ---- ha-card shim ---- */
-    ha-card {
-      display: block;
-      background: var(--ha-card-background, #1e2635);
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-      overflow: hidden;
-    }
+    ha-card { display: block; background: var(--ha-card-background); border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4); overflow: hidden; }
+    weather-mosaic-card { display: block; }
+    #cards { margin-top: 12px; display: flex; flex-direction: column; gap: 20px; align-items: center; }
+    #cards .grid-wrap { width: 100%; }
+    #cards .spiral-wrap { width: 75%; }
 
-    weather-mosaic-card {
-      display: block;
-    }
+    .yaml { margin-top: 22px; border: 1px solid var(--divider-color); border-radius: 10px; overflow: hidden; }
+    .yaml-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px;
+      background: #0f172a; font-size: 0.8rem; color: #9ca3af; }
+    .yaml pre { margin: 0; padding: 12px 14px; background: #0b1220; color: #d5deea; overflow-x: auto;
+      font-size: 0.82rem; line-height: 1.55; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .yaml button { padding: 5px 10px; font-size: 0.78rem; }
 
-    /* ---- caption ---- */
-    .caption {
-      font-size: 0.72rem;
-      color: #9ca3af;
-      margin-top: 6px;
-      padding: 0 4px;
-    }
+    .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+      color: #6b7280; margin: 0 0 12px; }
+    hr.div { border: 0; border-top: 1px solid #1f2937; margin: 48px 0 36px; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 18px; }
+    .cap { font-size: 0.72rem; color: #9ca3af; margin-top: 6px; padding: 0 2px; }
 
-    /* ---- footer ---- */
-    footer {
-      padding: 32px;
-      max-width: 1300px;
-      margin: 0 auto;
-      border-top: 1px solid #1f2937;
-      color: #374151;
-      font-size: 0.8rem;
-      display: flex;
-      gap: 24px;
-      flex-wrap: wrap;
-    }
-    footer a {
-      color: #4b5563;
-      text-decoration: none;
-    }
-    footer a:hover {
-      color: #9ca3af;
-    }
+    footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid #1f2937;
+      color: #6b7280; font-size: 0.78rem; line-height: 1.7; }
+    footer a { color: #6b7280; }
+    footer .links { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 10px; }
+    footer .links a { color: #4b5563; text-decoration: none; }
+    footer .links a:hover { color: #9ca3af; }
+    code { background: #0f172a; padding: 1px 5px; border-radius: 4px; }
   </style>
 </head>
 <body>
-
-<div class="page-header">
-  <h1>Weather Mosaic Card</h1>
-  <p>
-    A <a href="https://www.home-assistant.io/" style="color:#6b9fff">Home Assistant</a> dashboard card
-    that displays a 7-day hourly weather forecast as a color-coded grid — one row per day,
-    one cell per hour, temperature encoded as color so you can spot patterns at a glance.
-    Or wind it into a <strong style="color:#c7d0dc">spiral</strong> that gives near-term hours more space than distant ones,
-    and bracket the daylight hours with <strong style="color:#c7d0dc">sunrise &amp; sunset markers</strong>.
-  </p>
+<div class="page">
+  <h1>Weather Mosaic Card — live preview</h1>
+  <p class="sub">A <a href="https://www.home-assistant.io/" style="color:#6b9fff">Home Assistant</a>
+    dashboard card that shows a week of hourly weather as a color grid — or a spiral. Enter a city anywhere
+    in the world, or use your location, and see your own next 7 days rendered with a real forecast.</p>
   <div class="badges">
-    <a href="https://github.com/whalleyms/weather-mosaic-card/releases/latest">
-      <img src="https://img.shields.io/github/v/release/whalleyms/weather-mosaic-card?style=flat-square&label=release&color=3b82f6" alt="release">
-    </a>
-    <a href="https://github.com/whalleyms/weather-mosaic-card">
-      <img src="https://img.shields.io/github/stars/whalleyms/weather-mosaic-card?style=flat-square&color=f59e0b" alt="stars">
-    </a>
-    <a href="https://github.com/whalleyms/weather-mosaic-card/blob/main/LICENSE">
-      <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT license">
-    </a>
-    <a href="https://hacs.xyz">
-      <img src="https://img.shields.io/badge/HACS-Default-41BDF5?style=flat-square" alt="HACS">
-    </a>
+    <a href="https://github.com/whalleyms/weather-mosaic-card"><img src="https://img.shields.io/github/stars/whalleyms/weather-mosaic-card?style=flat-square&color=f59e0b" alt="stars"></a>
+    <a href="https://github.com/whalleyms/weather-mosaic-card/releases/latest"><img src="https://img.shields.io/github/v/release/whalleyms/weather-mosaic-card?style=flat-square&label=release&color=3b82f6" alt="release"></a>
+    <a href="https://github.com/whalleyms/weather-mosaic-card"><img src="https://img.shields.io/badge/HACS-Default-41BDF5?style=flat-square" alt="HACS"></a>
   </div>
-</div>
 
-<!-- Spiral layout showcase -->
-<div class="section">
-  <p class="section-label">Spiral Layout</p>
-  <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;max-width:760px;margin:-4px 0 20px;">
-    The same forecast wound into a spiral. It starts at <em>now</em> on the outer edge and winds inward
-    into the future — and because each turn inward is shorter, days further ahead take up less space.
-    Screen real estate scales with forecast confidence: the near term is large and prominent, the far
-    edge small and quiet. Midnight is always at 12 o'clock and the current temperature sits in the center.
-  </p>
-  <div class="cards" id="spiral"></div>
-</div>
+  <div class="controls">
+    <div class="search">
+      <input id="q" type="text" placeholder="City or place — e.g. Lisbon, 名古屋, Denver" autocomplete="off">
+      <button id="go" class="primary">Search</button>
+    </div>
+    <button id="geo">📍 Use my location</button>
+  </div>
+  <div class="matches" id="matches"></div>
 
-<!-- Sunrise & sunset markers showcase -->
-<div class="section">
-  <p class="section-label">Sunrise &amp; Sunset Markers</p>
-  <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;max-width:760px;margin:-4px 0 20px;">
-    Switch on <code style="color:#c7d0dc">sun_gaps</code> to open thin gaps at sunrise and sunset,
-    bracketing the daylight hours — a narrow band in winter, wide in summer — with the exact times
-    printed at each gap. Sunrise and sunset are computed automatically from your location, and the
-    markers work on both the grid and the spiral.
-  </p>
-  <div class="cards" id="sungaps"></div>
-</div>
+  <div class="opts">
+    <label>Units
+      <select id="units"><option value="F">°F</option><option value="C">°C</option></select>
+    </label>
+    <label>Clock
+      <select id="tf"><option value="12">12-hour</option><option value="24">24-hour</option></select>
+    </label>
+    <label>Color scale
+      <select id="scale">
+        <option value="mosaic">Mosaic</option>
+        <option value="turbo">Turbo</option>
+        <option value="blue_red">Blue → Red</option>
+        <option value="viridis">Viridis</option>
+        <option value="inferno">Inferno</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="sun" checked> Sunrise/sunset markers</label>
+  </div>
 
-<!-- Color scale showcase -->
-<div class="section">
-  <p class="section-label">Color Scales</p>
-  <div class="cards" id="scales"></div>
-</div>
+  <div class="status" id="status"><span class="spinner" id="spinner"></span><span id="statustext"></span></div>
+  <div id="cards"></div>
 
-<!-- Full-width feature cards -->
-<div class="section">
-  <p class="section-label">Different Climates</p>
-  <div class="cards wide" id="climates"></div>
-</div>
+  <div class="yaml">
+    <div class="yaml-head"><span>Add it to your dashboard</span><button id="copy">Copy</button></div>
+    <pre id="yaml"></pre>
+  </div>
 
-<!-- Minimal / compact -->
-<div class="section">
-  <p class="section-label">Compact &amp; Minimal</p>
-  <div class="cards" id="compact"></div>
-</div>
+  <hr class="div">
+  <p class="section-label">Color scales</p>
+  <div class="gallery" id="gallery"></div>
 
-<footer>
-  <a href="https://github.com/whalleyms/weather-mosaic-card">GitHub</a>
-  <a href="https://github.com/whalleyms/weather-mosaic-card/blob/main/README.md">Documentation</a>
-  <a href="https://github.com/whalleyms/weather-mosaic-card/releases/latest">Download</a>
-  <a href="https://hacs.xyz">HACS</a>
-  <span style="margin-left:auto">MIT License</span>
-</footer>
+  <footer>
+    <div class="links">
+      <a href="https://github.com/whalleyms/weather-mosaic-card">GitHub</a>
+      <a href="https://github.com/whalleyms/weather-mosaic-card/blob/main/README.md">Documentation</a>
+      <a href="https://github.com/whalleyms/weather-mosaic-card/releases/latest">Download</a>
+      <a href="https://hacs.xyz">HACS</a>
+    </div>
+    Forecast and geocoding by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+    (free, no account). Your search term or location is sent to Open-Meteo to fetch the forecast; nothing is
+    stored here. Open-Meteo may differ slightly from whatever weather integration you run in Home Assistant.
+  </footer>
+</div>
 
 <script>
-// ---------------------------------------------------------------------------
-// Synthetic forecast generator
-// ---------------------------------------------------------------------------
-function generateForecast({ baseTemp, swing, tzOffsetHours, conditions, trend = 0, wave = 0 }) {
-  const now   = new Date();
-  const start = new Date(now);
-  start.setUTCHours(start.getUTCHours() - ((start.getUTCHours() + tzOffsetHours + 24) % 24), 0, 0, 0);
+const ENTITY = 'weather.preview';
+const $ = id => document.getElementById(id);
+let state = null; // { place, forecast, cur, tz, lat, lon }
 
+const isUS = (navigator.language || '').toLowerCase().includes('us');
+$('units').value = isUS ? 'F' : 'C';
+$('tf').value = isUS ? '12' : '24';
+
+function setStatus(text, isErr, busy) {
+  $('statustext').textContent = text || '';
+  $('status').className = 'status' + (isErr ? ' err' : '');
+  $('spinner').style.display = busy ? 'inline-block' : 'none';
+}
+
+function offsetStr(sec) {
+  const s = sec >= 0 ? '+' : '-', a = Math.abs(sec);
+  const hh = String(Math.floor(a / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((a % 3600) / 60)).padStart(2, '0');
+  return `${s}${hh}:${mm}`;
+}
+
+// WMO weather code -> a Home Assistant condition string (drives precip symbols)
+function wmo(code) {
+  if (code === 0) return 'sunny';
+  if (code === 1 || code === 2) return 'partlycloudy';
+  if (code === 3) return 'cloudy';
+  if (code === 45 || code === 48) return 'fog';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snowy';
+  if (code === 66 || code === 67) return 'snowy-rainy';
+  if (code >= 95) return 'lightning-rainy';
+  if ((code >= 51 && code <= 65) || (code >= 80 && code <= 82)) return 'rainy';
+  return 'partlycloudy';
+}
+
+// --- Synthetic forecast (gallery + offline fallback) -----------------------
+function synthForecast({ baseTemp, swing, tzOffsetHours = 0, conditions, trend = 0, wave = 0 }) {
+  const start = new Date();
+  start.setUTCHours(start.getUTCHours() - ((start.getUTCHours() + tzOffsetHours + 24) % 24), 0, 0, 0);
   return Array.from({ length: 7 * 24 }, (_, h) => {
-    const dt      = new Date(start.getTime() + h * 3_600_000);
-    const localH  = ((dt.getUTCHours() + tzOffsetHours) + 24) % 24;
-    const dayIdx  = Math.floor(h / 24);
-    // Diurnal cycle: coldest ~4 am, warmest ~3 pm, with ±1.5 h day-to-day jitter
-    const phaseJitter = Math.sin(dayIdx * 1.9) * 1.5;
-    const diurnal = -Math.cos((localH - 4 - phaseJitter) / 24 * 2 * Math.PI);
-    // Slow wave across the week (e.g. a front passing through) + linear trend
+    const dt = new Date(start.getTime() + h * 3_600_000);
+    const localH = ((dt.getUTCHours() + tzOffsetHours) + 24) % 24, dayIdx = Math.floor(h / 24);
+    const pj = Math.sin(dayIdx * 1.9) * 1.5;
+    const diurnal = -Math.cos((localH - 4 - pj) / 24 * 2 * Math.PI);
     const dayShift = trend * dayIdx + wave * Math.sin(dayIdx / 6 * 2 * Math.PI);
-    // Narrow the swing on cold/cloudy days, widen on sunny ones
-    const cond    = conditions[dayIdx % conditions.length];
-    const swingMod = cond === 'sunny' ? 1.15 : cond.includes('rain') || cond.includes('snow') ? 0.75 : 1.0;
-    const temp    = Math.round((baseTemp + dayShift + swing * swingMod * diurnal) * 10) / 10;
-    const precip  = cond.includes('snow') ? 75
-                  : cond.includes('rain') ? 65
-                  : cond === 'cloudy'     ? 25
-                  : 5;
-    return { datetime: dt.toISOString(), temperature: temp,
-             precipitation_probability: precip, condition: cond };
+    const cond = conditions[dayIdx % conditions.length];
+    const sm = cond === 'sunny' ? 1.15 : (cond.includes('rain') || cond.includes('snow')) ? 0.75 : 1.0;
+    const temp = Math.round((baseTemp + dayShift + swing * sm * diurnal) * 10) / 10;
+    const precip = cond.includes('snow') ? 75 : cond.includes('rain') ? 65 : cond === 'cloudy' ? 25 : 5;
+    return { datetime: dt.toISOString(), temperature: temp, precipitation_probability: precip, condition: cond };
   });
 }
 
-function makeMockHass(entityId, currentCondition, attrs, forecastOpts) {
-  const forecast = generateForecast(forecastOpts);
+async function geocode(name) {
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=6&language=en&format=json`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('geocoding failed');
+  return (await r.json()).results || [];
+}
+
+async function forecast(lat, lon) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+    + `&hourly=temperature_2m,precipitation_probability,weathercode`
+    + `&current=temperature_2m,weathercode&forecast_days=7`
+    + `&temperature_unit=fahrenheit&timezone=auto`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('forecast failed');
+  return r.json();
+}
+
+function toHaForecast(fc) {
+  const os = offsetStr(fc.utc_offset_seconds), h = fc.hourly;
+  return h.time.map((t, i) => ({
+    datetime: `${t}:00${os}`,
+    temperature: h.temperature_2m[i],
+    precipitation_probability: h.precipitation_probability[i] ?? 0,
+    condition: wmo(h.weathercode[i]),
+  }));
+}
+
+function mockHass(haForecast, cur, tz, lat, lon) {
   return {
-    states: {
-      [entityId]: {
-        state: currentCondition,
-        attributes: { temperature_unit: '°F', ...attrs },
-      },
-    },
-    config: { latitude: attrs.latitude, longitude: attrs.longitude, time_zone: attrs.timezone },
+    states: { [ENTITY]: { state: cur.condition, attributes: { temperature_unit: '°F', temperature: cur.temp } } },
+    config: { latitude: lat, longitude: lon, time_zone: tz },
     connection: {
-      subscribeMessage(callback) {
-        Promise.resolve().then(() => callback({ forecast }));
-        return Promise.resolve(() => {});
-      },
+      subscribeMessage(cb) { Promise.resolve().then(() => cb({ forecast: haForecast })); return Promise.resolve(() => {}); },
     },
   };
 }
 
-function addCard(containerId, config, hass, caption) {
-  const wrapper = document.createElement('div');
+function makeCard(container, cls, cfg, hass, caption) {
+  const wrap = document.createElement('div');
+  wrap.className = cls;
   const card = document.createElement('weather-mosaic-card');
-  wrapper.appendChild(card);
-  if (caption) {
-    const cap = document.createElement('p');
-    cap.className = 'caption';
-    cap.textContent = caption;
-    wrapper.appendChild(cap);
-  }
-  document.getElementById(containerId).appendChild(wrapper);
-  card.setConfig(config);
+  wrap.appendChild(card);
+  if (caption) { const c = document.createElement('div'); c.className = 'cap'; c.textContent = caption; wrap.appendChild(c); }
+  $(container).appendChild(wrap);
+  card.setConfig(cfg);
   card.hass = hass;
 }
 
-// ---------------------------------------------------------------------------
-// Color scale showcase — same location, every scale
-// ---------------------------------------------------------------------------
-const sunnyvaleHass = (entityId) => makeMockHass(entityId, 'partlycloudy',
-  { temperature: 64, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
-  { baseTemp: 62, swing: 14, tzOffsetHours: -7, trend: 1.5, wave: 4,
-    conditions: ['sunny','sunny','partlycloudy','cloudy','rainy','partlycloudy','sunny'] }
-);
+function updateYaml() {
+  const unit = $('units').value, tf = $('tf').value, scale = $('scale').value, sun = $('sun').checked;
+  let y = 'type: custom:weather-mosaic-card\n';
+  y += 'entity: weather.your_weather_entity\n';
+  if (scale !== 'mosaic') y += `color_scale: ${scale}\n`;
+  if (unit !== 'F') y += `temperature_unit: ${unit}\n`;
+  if (tf !== '12') y += `time_format: "${tf}"\n`;
+  if (sun) y += 'sun_gaps: true\n';
+  $('yaml').textContent = y.trimEnd();
+}
 
-const scales = [
-  { scale: 'mosaic',   label: 'mosaic — multi-color gradient (default)' },
-  { scale: 'blue_red', label: 'blue_red — clean diverging scale' },
-  { scale: 'turbo',    label: 'turbo — perceptually uniform' },
-  { scale: 'viridis',  label: 'viridis — colorblind-safe' },
-  { scale: 'inferno',  label: 'inferno — high contrast, dark-theme friendly' },
-  { scale: 'white_hot', label: 'white_hot — thermal grayscale, coldest black → hottest white' },
-  { scale: 'black_hot', label: 'black_hot — inverted thermal, coldest white → hottest black' },
-];
+function render() {
+  updateYaml();
+  if (!state) return;
+  const { place, forecast: haForecast, cur, tz, lat, lon } = state;
+  const unit = $('units').value, tf = $('tf').value, scale = $('scale').value, sun = $('sun').checked;
+  $('cards').innerHTML = '';
+  const base = { entity: ENTITY, title: place, temperature_unit: unit, time_format: tf,
+    color_scale: scale, sun_gaps: sun, timezone: tz, latitude: lat, longitude: lon };
+  makeCard('cards', 'grid-wrap', { ...base, layout: 'grid', hours: 'above' }, mockHass(haForecast, cur, tz, lat, lon));
+  makeCard('cards', 'spiral-wrap', { ...base, layout: 'spiral' }, mockHass(haForecast, cur, tz, lat, lon));
+}
 
-scales.forEach(({ scale, label }) => {
-  addCard('scales',
-    { entity: `weather.demo_${scale}`, title: 'Sunnyvale, CA',
-      color_scale: scale, hours: 'above', time_format: '12' },
-    sunnyvaleHass(`weather.demo_${scale}`),
-    label
+async function loadCoords(lat, lon, label) {
+  $('matches').innerHTML = '';
+  setStatus('Loading forecast…', false, true);
+  try {
+    const fc = await forecast(lat, lon);
+    state = {
+      place: label, forecast: toHaForecast(fc),
+      cur: { temp: Math.round(fc.current.temperature_2m), condition: wmo(fc.current.weathercode) },
+      tz: fc.timezone, lat, lon,
+    };
+    setStatus('', false, false);
+    render();
+  } catch (e) {
+    // Offline fallback: synthesize a plausible week so the page never looks broken.
+    const base = Math.round(72 - Math.abs(lat) * 0.55);
+    state = {
+      place: label + ' (sample data)',
+      forecast: synthForecast({ baseTemp: base, swing: 16, wave: 5, trend: 1,
+        conditions: ['sunny', 'partlycloudy', 'cloudy', 'rainy', 'partlycloudy', 'sunny', 'sunny'] }),
+      cur: { temp: base + 6, condition: 'partlycloudy' },
+      tz: null, lat, lon,
+    };
+    setStatus('Couldn’t reach Open-Meteo — showing sample data.', true, false);
+    render();
+  }
+}
+
+function showMatches(results) {
+  const box = $('matches');
+  box.innerHTML = '';
+  if (results.length === 1) { const r = results[0]; loadCoords(r.latitude, r.longitude, r.name); return; }
+  results.slice(0, 6).forEach(r => {
+    const b = document.createElement('button');
+    b.className = 'match';
+    const region = [r.admin1, r.country].filter(Boolean).join(', ');
+    b.innerHTML = `${r.name} <small>${region}</small>`;
+    b.onclick = () => { box.innerHTML = ''; loadCoords(r.latitude, r.longitude, r.name); };
+    box.appendChild(b);
+  });
+}
+
+async function doSearch() {
+  const q = $('q').value.trim();
+  if (!q) return;
+  $('matches').innerHTML = '';
+  setStatus('Searching…', false, true);
+  try {
+    const results = await geocode(q);
+    if (!results.length) { setStatus(`No place found for “${q}”. Try another spelling.`, true, false); return; }
+    setStatus('', false, false);
+    showMatches(results);
+  } catch (e) {
+    setStatus('Search failed. Please try again.', true, false);
+  }
+}
+
+function useMyLocation() {
+  if (!navigator.geolocation) { setStatus('Geolocation is not available in this browser.', true, false); return; }
+  setStatus('Getting your location…', false, true);
+  navigator.geolocation.getCurrentPosition(
+    p => loadCoords(p.coords.latitude, p.coords.longitude, 'Your location'),
+    () => setStatus('Location permission denied.', true, false)
   );
-});
+}
 
-// ---------------------------------------------------------------------------
-// Spiral layout — confidence encoded as screen real estate
-// ---------------------------------------------------------------------------
-addCard('spiral',
-  { entity: 'weather.spiral_mosaic', title: 'Sunnyvale, CA', layout: 'spiral', time_format: '12' },
-  sunnyvaleHass('weather.spiral_mosaic'),
-  'Now on the outer edge, winding inward into the future — distant days take up less space'
-);
+// --- Color-scale gallery (synthetic, always renders) -----------------------
+function buildGallery() {
+  const scales = [
+    ['mosaic', 'mosaic — multi-color (default)'],
+    ['turbo', 'turbo — perceptually uniform'],
+    ['blue_red', 'blue_red — clean diverging'],
+    ['viridis', 'viridis — colorblind-safe'],
+    ['inferno', 'inferno — dark-theme friendly'],
+    ['white_hot', 'white_hot — thermal grayscale'],
+  ];
+  const fc = synthForecast({ baseTemp: 62, swing: 14, tzOffsetHours: -7, trend: 1.5, wave: 4,
+    conditions: ['sunny', 'sunny', 'partlycloudy', 'cloudy', 'rainy', 'partlycloudy', 'sunny'] });
+  const hass = () => ({
+    states: { [ENTITY]: { state: 'partlycloudy', attributes: { temperature_unit: '°F', temperature: 64 } } },
+    config: { latitude: 37.37, longitude: -122.04, time_zone: 'America/Los_Angeles' },
+    connection: { subscribeMessage(cb) { Promise.resolve().then(() => cb({ forecast: fc })); return Promise.resolve(() => {}); } },
+  });
+  scales.forEach(([s, label]) => {
+    makeCard('gallery', 'g', { entity: ENTITY, title: 'Sunnyvale, CA', color_scale: s, hours: 'above', time_format: '12' }, hass(), label);
+  });
+}
 
-addCard('spiral',
-  { entity: 'weather.spiral_denver', title: 'Denver, CO', layout: 'spiral', color_scale: 'turbo', time_format: '12' },
-  makeMockHass('weather.spiral_denver', 'sunny',
-    { temperature: 52, latitude: 39.74, longitude: -104.98, timezone: 'America/Denver' },
-    { baseTemp: 55, swing: 22, tzOffsetHours: -6, trend: -2, wave: 8,
-      conditions: ['sunny','sunny','partlycloudy','snowy','snowy-rainy','cloudy','sunny'] }),
-  'Turbo scale — big day/night swings wind inward as bold color bands'
-);
+$('go').onclick = doSearch;
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+$('geo').onclick = useMyLocation;
+['units', 'tf', 'scale', 'sun'].forEach(id => $(id).addEventListener('change', render));
+$('copy').onclick = () => {
+  navigator.clipboard.writeText($('yaml').textContent).then(() => {
+    $('copy').textContent = 'Copied!'; setTimeout(() => $('copy').textContent = 'Copy', 1500);
+  });
+};
 
-addCard('spiral',
-  { entity: 'weather.spiral_london', title: 'London, UK — °C', layout: 'spiral',
-    temperature_unit: 'C', color_scale: 'blue_red', time_format: '24' },
-  makeMockHass('weather.spiral_london', 'cloudy',
-    { temperature: 12, temperature_unit: '°C', latitude: 51.51, longitude: -0.13, timezone: 'Europe/London' },
-    { baseTemp: 12, swing: 6, tzOffsetHours: 1, trend: -1, wave: 3,
-      conditions: ['cloudy','rainy','partlycloudy','cloudy','rainy','rainy','cloudy'] }),
-  'Celsius — center temperature and forecast in °C, blue_red scale'
-);
-
-// ---------------------------------------------------------------------------
-// Sunrise & sunset markers — grid and spiral
-// ---------------------------------------------------------------------------
-const denverSunHass = () => makeMockHass('weather.sun_demo', 'sunny',
-  { temperature: 58, latitude: 39.74, longitude: -104.98, timezone: 'America/Denver' },
-  { baseTemp: 58, swing: 20, tzOffsetHours: -6, trend: 1, wave: 6,
-    conditions: ['sunny','sunny','partlycloudy','cloudy','rainy','partlycloudy','sunny'] }
-);
-
-addCard('sungaps',
-  { entity: 'weather.sun_demo', title: 'Denver, CO', sun_gaps: true, hours: 'above', time_format: '12' },
-  denverSunHass(),
-  'Grid — gaps at the sunrise and sunset columns, with the exact times labelled'
-);
-
-addCard('sungaps',
-  { entity: 'weather.sun_demo', title: 'Denver, CO', layout: 'spiral', sun_gaps: true, time_format: '12' },
-  denverSunHass(),
-  'Spiral — the same markers as radial gaps, separating the day arc from the night'
-);
-
-// ---------------------------------------------------------------------------
-// Different climates — full 7 days
-// ---------------------------------------------------------------------------
-addCard('climates',
-  { entity: 'weather.miami', title: 'Miami, FL  —  warm & humid',
-    color_scale: 'mosaic', hours: 'above', time_format: '12' },
-  makeMockHass('weather.miami', 'rainy',
-    { temperature: 84, latitude: 25.76, longitude: -80.19, timezone: 'America/New_York' },
-    { baseTemp: 85, swing: 8, tzOffsetHours: -4, trend: 0.5, wave: 3,
-      conditions: ['rainy','rainy','partlycloudy','sunny','sunny','rainy','cloudy'] }),
-  'High humidity, afternoon thunderstorms, narrow day/night temperature range'
-);
-
-addCard('climates',
-  { entity: 'weather.denver', title: 'Denver, CO  —  dry & variable',
-    color_scale: 'turbo', hours: 'above', time_format: '12' },
-  makeMockHass('weather.denver', 'sunny',
-    { temperature: 52, latitude: 39.74, longitude: -104.98, timezone: 'America/Denver' },
-    { baseTemp: 55, swing: 22, tzOffsetHours: -6, trend: -2, wave: 8,
-      conditions: ['sunny','sunny','partlycloudy','snowy','snowy-rainy','cloudy','sunny'] }),
-  'Large day/night swing, occasional late-spring snow'
-);
-
-addCard('climates',
-  { entity: 'weather.seattle', title: 'Seattle, WA  —  mild & wet',
-    color_scale: 'blue_red', hours: 'above', time_format: '12' },
-  makeMockHass('weather.seattle', 'cloudy',
-    { temperature: 48, latitude: 47.61, longitude: -122.33, timezone: 'America/Los_Angeles' },
-    { baseTemp: 50, swing: 10, tzOffsetHours: -7, trend: 1, wave: 5,
-      conditions: ['rainy','rainy','cloudy','partlycloudy','rainy','cloudy','rainy'] }),
-  '24-hour time format, blue_red scale — easy to see the cold end of the range'
-);
-
-addCard('climates',
-  { entity: 'weather.chicago', title: 'Chicago, IL  —  four seasons',
-    color_scale: 'viridis', hours: 'above', time_format: '12' },
-  makeMockHass('weather.chicago', 'partlycloudy',
-    { temperature: 45, latitude: 41.88, longitude: -87.63, timezone: 'America/Chicago' },
-    { baseTemp: 45, swing: 20, tzOffsetHours: -5, trend: -3, wave: 10,
-      conditions: ['cloudy','rainy','partlycloudy','sunny','sunny','partlycloudy','snowy'] }),
-  'Wide seasonal temperature range shows off the viridis gradient'
-);
-
-// ---------------------------------------------------------------------------
-// Compact & minimal
-// ---------------------------------------------------------------------------
-addCard('compact',
-  { entity: 'weather.compact_3day', title: 'Weekend',
-    days: 3, hours: 'above', time_format: '12', color_scale: 'mosaic' },
-  makeMockHass('weather.compact_3day', 'sunny',
-    { temperature: 70, latitude: 37.37, longitude: -122.04, timezone: 'America/Los_Angeles' },
-    { baseTemp: 68, swing: 12, tzOffsetHours: -7, trend: 2, wave: 3,
-      conditions: ['sunny','partlycloudy','sunny','sunny','sunny','sunny','sunny'] }),
-  '3-day view — great for a narrow sidebar column'
-);
-
-addCard('compact',
-  { entity: 'weather.noheader', title: '',
-    show_current: false, show_minmax: false, show_precip: false,
-    days: 5, color_scale: 'inferno' },
-  makeMockHass('weather.noheader', 'sunny',
-    { temperature: 90, latitude: 33.45, longitude: -112.07, timezone: 'America/Phoenix' },
-    { baseTemp: 95, swing: 18, tzOffsetHours: -7, trend: 1, wave: 4,
-      conditions: ['sunny','sunny','sunny','sunny','sunny','sunny','sunny'] }),
-  'Header-less, label-free — pure heat map. Phoenix, AZ on inferno scale'
-);
-
-addCard('compact',
-  { entity: 'weather.celsius', title: 'London, UK  — °C',
-    temperature_unit: 'C', color_scale: 'blue_red',
-    hours: 'above', time_format: '24', days: 7 },
-  makeMockHass('weather.celsius', 'cloudy',
-    { temperature: 12, latitude: 51.51, longitude: -0.13, timezone: 'Europe/London' },
-    { baseTemp: 55, swing: 10, tzOffsetHours: 1, trend: -1.5, wave: 5,
-      conditions: ['cloudy','rainy','partlycloudy','cloudy','rainy','rainy','cloudy'] }),
-  'Celsius display with 24-hour time labels'
-);
+updateYaml();
+buildGallery();
+$('q').value = 'London';
+loadCoords(51.5074, -0.1278, 'London');
 </script>
 </body>
 </html>

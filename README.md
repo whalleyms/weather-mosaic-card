@@ -12,7 +12,11 @@
 
 A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that displays a multi-day hourly weather forecast as a color-coded grid — one row per day, one cell per hour. Each cell's color encodes temperature, so patterns jump out — hot afternoons, cool nights, a rainy stretch mid-week. The same forecast can also wind into a **spiral** that gives near-term hours more space, and either layout can mark **sunrise and sunset**.
 
-**[Preview →](https://whalleyms.github.io/weather-mosaic-card/)**
+<p align="center">
+  <a href="https://whalleyms.github.io/weather-mosaic-card/"><img src="https://img.shields.io/badge/%E2%96%B6%20Try%20it%20with%20your%20weather-live%20demo-3b82f6?style=for-the-badge" alt="Try it with your weather — live demo"></a>
+</p>
+
+Enter your city on the [**live demo**](https://whalleyms.github.io/weather-mosaic-card/) and see your own next 7 days rendered by the card — no install needed.
 
 ![Weather Mosaic Card — a week of hourly weather as a color-coded grid](assets/weather_mosaic_hero_grid.png)
 
