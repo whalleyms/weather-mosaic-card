@@ -291,6 +291,37 @@
         { baseTemp: 52, swing: 8, tzOffsetHours: 0,
           conditions: ['cloudy','rainy','cloudy','partlycloudy','cloudy','rainy','cloudy'] })
     );
+
+    // --- Sparse forecast + interpolation (issue #5, Meteo-France) ---
+    // Meteo-France gives hourly for ~36h, then 3-hourly, then 6-hourly. Without
+    // `interpolate` the grid is full of holes; with it, gaps are filled linearly.
+    function sparseForecast() {
+      const HOUR = 3_600_000, tzOff = 2; // Paris CEST
+      const start = new Date(); start.setUTCMinutes(0, 0, 0);
+      const local = h => ((new Date(start.getTime() + h * HOUR).getUTCHours() + tzOff) + 24) % 24;
+      const temp  = h => Math.round((17 + 7 * (-Math.cos((local(h) - 4) / 24 * 2 * Math.PI))) * 10) / 10;
+      const rainy = h => Math.floor(h / 24) === 2 && local(h) >= 6 && local(h) < 9;
+      const hrs = [];
+      for (let h = 0;  h <= 30;  h++)      hrs.push(h);   // hourly for ~30 h
+      for (let h = 33; h <= 72;  h += 3)   hrs.push(h);   // then 3-hourly
+      for (let h = 78; h <= 168; h += 6)   hrs.push(h);   // then 6-hourly
+      return hrs.map(h => ({ datetime: new Date(start.getTime() + h * HOUR).toISOString(),
+        temperature: temp(h), precipitation_probability: rainy(h) ? 70 : 5, condition: rainy(h) ? 'rainy' : 'sunny' }));
+    }
+    function makeSparseHass(entityId) {
+      const forecast = sparseForecast();
+      return { states: { [entityId]: { state: 'sunny', attributes: { temperature_unit: '°C' } } },
+        config: { latitude: 48.87, longitude: 2.35, time_zone: 'Europe/Paris' },
+        connection: { subscribeMessage(cb) { Promise.resolve().then(() => cb({ forecast })); return Promise.resolve(() => {}); } } };
+    }
+    addCard(
+      { entity: 'weather.meteofrance', title: 'Meteo-France — raw (holey)',
+        temperature_unit: 'C', timezone: 'Europe/Paris', hours: 'above', time_format: '24' },
+      makeSparseHass('weather.meteofrance'));
+    addCard(
+      { entity: 'weather.meteofrance2', title: 'Meteo-France — interpolate: true',
+        temperature_unit: 'C', timezone: 'Europe/Paris', interpolate: true, hours: 'above', time_format: '24' },
+      makeSparseHass('weather.meteofrance2'));
   </script>
 </body>
 </html>

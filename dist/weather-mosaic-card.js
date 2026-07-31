@@ -618,6 +618,50 @@ class WeatherMosaicCard extends HTMLElement {
   }
 
   // -------------------------------------------------------------------------
+  // Densify a sparse forecast to one point per hour by linear interpolation
+  // between the known points. Opt-in via `interpolate: true`. Temperature and
+  // precipitation probability are interpolated linearly (in the entity's native
+  // unit — normalization happens later); the condition, which drives the precip
+  // symbol, is carried from the nearer known hour. Never extrapolates before the
+  // first or after the last known point, so trailing gaps stay empty rather than
+  // fabricated.
+  // -------------------------------------------------------------------------
+  _interpolateForecast(forecast) {
+    const HOUR = 3600000;
+    const pts = forecast
+      .map(f => ({ f, t: new Date(f.datetime).getTime() }))
+      .filter(p => Number.isFinite(p.t))
+      .sort((a, b) => a.t - b.t);
+    if (pts.length < 2) return forecast;
+
+    const num = v => (v == null || v === '' || Number.isNaN(Number(v))) ? null : Number(v);
+    const out = [];
+    for (let i = 0; i < pts.length; i++) {
+      out.push(pts[i].f);
+      const a = pts[i], b = pts[i + 1];
+      if (!b) break;
+      const gap = Math.round((b.t - a.t) / HOUR);
+      if (gap <= 1) continue;                          // already hourly (or denser)
+      const ta = num(a.f.temperature), tb = num(b.f.temperature);
+      const pa = num(a.f.precipitation_probability), pb = num(b.f.precipitation_probability);
+      for (let h = 1; h < gap; h++) {
+        const frac = h / gap;
+        const lerp = (x, y) => (x == null || y == null) ? (x ?? y) : x + (y - x) * frac;
+        const temp = lerp(ta, tb);
+        if (temp == null) continue;                    // nothing to show; leave the gap
+        out.push({
+          datetime: new Date(a.t + h * HOUR).toISOString(),
+          temperature: temp,
+          precipitation_probability: (pa == null && pb == null) ? undefined
+            : Math.round(lerp(pa ?? 0, pb ?? 0)),
+          condition: frac < 0.5 ? a.f.condition : b.f.condition,
+        });
+      }
+    }
+    return out;
+  }
+
+  // -------------------------------------------------------------------------
   // Render grid
   // -------------------------------------------------------------------------
   _render(forecast) {
@@ -627,6 +671,10 @@ class WeatherMosaicCard extends HTMLElement {
     this._haveForecast = true;
     if (this._errorTimer) { clearTimeout(this._errorTimer); this._errorTimer = null; }
     this._lastForecast = forecast;
+
+    // Optionally fill sparse forecasts (e.g. Meteo-France, which drops to
+    // 3-hourly then 6-hourly after ~36 h) so the grid isn't full of holes.
+    if (this._config.interpolate) forecast = this._interpolateForecast(forecast);
 
     const DAYS = Math.min(7, Math.max(1, parseInt(this._config.days) || 7));
     const dayMap = {}, dayLabels = [];
@@ -1234,6 +1282,10 @@ class WeatherMosaicCardEditor extends HTMLElement {
           <ha-switch id="show_precip"></ha-switch>
         </div>
         <div class="switch-row">
+          <span>Fill Gaps in Sparse Forecasts</span>
+          <ha-switch id="interpolate"></ha-switch>
+        </div>
+        <div class="switch-row">
           <span>Mark Sunrise &amp; Sunset (gaps)</span>
           <ha-switch id="sun_gaps"></ha-switch>
         </div>
@@ -1286,7 +1338,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
       });
     });
 
-    ['show_current', 'show_minmax', 'show_precip', 'sun_gaps'].forEach(id => {
+    ['show_current', 'show_minmax', 'show_precip', 'interpolate', 'sun_gaps'].forEach(id => {
       this.shadowRoot.getElementById(id).addEventListener('change', e => {
         this._changed(id, e.target.checked);
       });
@@ -1339,6 +1391,7 @@ class WeatherMosaicCardEditor extends HTMLElement {
     chk('show_current', this._config.show_current !== false);
     chk('show_minmax',  this._config.show_minmax  !== false);
     chk('show_precip',  this._config.show_precip  !== false);
+    chk('interpolate', !!this._config.interpolate);
     chk('sun_gaps', !!this._config.sun_gaps);
     this._toggleSunFields();
   }

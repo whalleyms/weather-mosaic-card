@@ -121,6 +121,7 @@ These options are available in the card's visual editor:
 | `show_minmax` | boolean | `true` | Show daily high and low temperature labels |
 | `show_precip` | boolean | `true` | Show precipitation symbols |
 | `color_scale` | `mosaic` \| `blue_red` \| `turbo` \| `viridis` \| `inferno` \| `white_hot` \| `black_hot` | `mosaic` | Color scale used to encode temperature |
+| `interpolate` | boolean | `false` | Fill gaps in a **sparse** forecast. Some sources (e.g. Météo-France) give hourly data for the first day or two, then switch to 3-hourly and 6-hourly — which leaves the grid full of holes. With this on, the missing hours are filled by linear interpolation between the known points (temperature and precipitation probability), so the grid reads as a continuous whole. See [Sparse Forecasts](#sparse-forecasts). |
 | `sun_gaps` | boolean | `false` | Mark **sunrise and sunset** as thin vertical gaps on the grid, bracketing the daytime hours. See [Sunrise & Sunset Markers](#sunrise--sunset-markers). |
 
 ### Advanced YAML Options
@@ -227,6 +228,27 @@ Sunrise and sunset are **computed from the location's coordinates and today's da
 For a large timezone that spans many cities — `America/New_York` covers the whole US East and resolves to New York City — set `latitude` / `longitude` to pin the exact spot; the printed sunrise/sunset times can otherwise be off by a few minutes. Coordinates are a one-time geographic fact, with no seasonal upkeep. The gap width is adjustable with `sun_gap_width` (pixels, default 2).
 
 > Works on both the grid and the spiral. Everything else — color scales, precipitation symbols, min/max labels — is unchanged.
+
+---
+
+## Sparse Forecasts
+
+The card draws one cell per hour. Some weather sources don't provide a value for every hour — [Météo-France](https://www.home-assistant.io/integrations/meteo_france/), for example, gives hourly data for the first day or two, then drops to a point every 3 hours, then every 6. On a grid that leaves visible holes where there's no data.
+
+Turn on **`interpolate`** (a switch in the visual editor) to fill those gaps:
+
+```yaml
+type: custom:weather-mosaic-card
+entity: weather.home
+interpolate: true
+```
+
+The missing hours are filled by **linear interpolation** between the known points — both temperature and precipitation probability — so the grid reads as a continuous whole instead of a checkerboard. The condition that drives each precipitation symbol is carried from the nearer known hour.
+
+A couple of things worth knowing:
+
+- It's **off by default**. Interpolated values are an estimate, not a forecast — this keeps the default honest and shows only what your source actually reported. Turn it on when a source is too sparse to look good raw.
+- It never **extrapolates**. Only gaps *between* two known points are filled; if the forecast simply ends, the grid ends there too rather than inventing hours past it.
 
 ---
 
