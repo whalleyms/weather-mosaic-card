@@ -180,6 +180,23 @@ const savedTheme = (() => { try { return localStorage.getItem('wmc-theme'); } ca
 const initTheme = savedTheme
   || (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 
+// Home Assistant defines <ha-card>; this standalone page doesn't. The card puts
+// one inside its own shadow root, where an undefined element falls back to
+// display:inline — and an inline box paints its background across a line box
+// before the first block child and after the last, leaving stray strips above
+// and below the card. The `ha-card` rule in this page's CSS can't fix that:
+// page styles don't cross a shadow boundary. A :host rule does, so register the
+// minimal stand-in HA would otherwise provide.
+if (!customElements.get('ha-card')) {
+  customElements.define('ha-card', class extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: 'open' }).innerHTML =
+        '<style>:host { display: block; }</style><slot></slot>';
+    }
+  });
+}
+
 function setStatus(text, isErr, busy) {
   $('statustext').textContent = text || '';
   $('status').className = 'status' + (isErr ? ' err' : '');
@@ -206,11 +223,21 @@ function wmo(code) {
   return 'partlycloudy';
 }
 
+// Home Assistant's forecast subscription only ever hands the card the current
+// hour onward, so on a real dashboard today's elapsed hours are simply absent
+// and their cells render empty. Both sources here return the full day starting
+// at midnight, so drop what has already passed — otherwise the demo shows a
+// filled-in today row that the real card never draws.
+function dropElapsed(list) {
+  const cutoff = Date.now() - 3_600_000; // keep the current hour, drop earlier ones
+  return list.filter(f => new Date(f.datetime).getTime() > cutoff);
+}
+
 // --- Synthetic forecast (gallery + offline fallback) -----------------------
 function synthForecast({ baseTemp, swing, tzOffsetHours = 0, conditions, trend = 0, wave = 0 }) {
   const start = new Date();
   start.setUTCHours(start.getUTCHours() - ((start.getUTCHours() + tzOffsetHours + 24) % 24), 0, 0, 0);
-  return Array.from({ length: 7 * 24 }, (_, h) => {
+  return dropElapsed(Array.from({ length: 7 * 24 }, (_, h) => {
     const dt = new Date(start.getTime() + h * 3_600_000);
     const localH = ((dt.getUTCHours() + tzOffsetHours) + 24) % 24, dayIdx = Math.floor(h / 24);
     const pj = Math.sin(dayIdx * 1.9) * 1.5;
@@ -221,7 +248,7 @@ function synthForecast({ baseTemp, swing, tzOffsetHours = 0, conditions, trend =
     const temp = Math.round((baseTemp + dayShift + swing * sm * diurnal) * 10) / 10;
     const precip = cond.includes('snow') ? 75 : cond.includes('rain') ? 65 : cond === 'cloudy' ? 25 : 5;
     return { datetime: dt.toISOString(), temperature: temp, precipitation_probability: precip, condition: cond };
-  });
+  }));
 }
 
 async function geocode(name) {
@@ -243,12 +270,12 @@ async function forecast(lat, lon) {
 
 function toHaForecast(fc) {
   const os = offsetStr(fc.utc_offset_seconds), h = fc.hourly;
-  return h.time.map((t, i) => ({
+  return dropElapsed(h.time.map((t, i) => ({
     datetime: `${t}:00${os}`,
     temperature: h.temperature_2m[i],
     precipitation_probability: h.precipitation_probability[i] ?? 0,
     condition: wmo(h.weathercode[i]),
-  }));
+  })));
 }
 
 function mockHass(haForecast, cur, tz, lat, lon) {
