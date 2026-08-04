@@ -775,11 +775,26 @@ class WeatherMosaicCard extends HTMLElement {
         }
       });
 
-      // Suppress labels on past hours or the very first forecast cell of today
+      // Today is a partial day: only the hours still to come are in the grid, so
+      // its extremes are the extremes of what's left, not of the day. Once the
+      // real high or low has already happened, the remaining hours still have a
+      // maximum and a minimum — and labeling those promotes an ordinary hour
+      // into "today's high/low", which is wrong. Typical case: the low is at
+      // dawn, and by the afternoon the coldest hour left is 11pm.
+      //
+      // An extreme is only genuine when it sits *inside* the remaining hours —
+      // warmer (or colder) hours on both sides of it. At either end it is an
+      // artifact of where the window happens to be cut: at the first remaining
+      // hour the curve is already heading away from a peak that has passed, and
+      // at the last hour it is still heading toward one that belongs to
+      // tomorrow. In those cases label nothing rather than a lesser extreme.
       if (d === 0) {
-        const firstHour = HOURS.find(h => day[h]) ?? -1;
-        if (highMarked && (highMarked.hour < nowHour || highMarked.hour === firstHour)) highMarked.entry.isHigh = false;
-        if (lowMarked  && (lowMarked.hour  < nowHour || lowMarked.hour  === firstHour)) lowMarked.entry.isLow  = false;
+        const avail     = HOURS.filter(h => day[h]);
+        const firstHour = avail[0] ?? -1;
+        const lastHour  = avail[avail.length - 1] ?? -1;
+        const edge = (m) => m.hour < nowHour || m.hour === firstHour || m.hour === lastHour;
+        if (highMarked && edge(highMarked)) highMarked.entry.isHigh = false;
+        if (lowMarked  && edge(lowMarked))  lowMarked.entry.isLow   = false;
       }
     }
 
