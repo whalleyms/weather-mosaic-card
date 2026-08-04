@@ -42,6 +42,10 @@ The idea comes from Edward Tufte's data-to-ink ratio: as much information as pos
 
 Each cell represents one hour of one day. Cell color encodes temperature using your choice of color scale. Precipitation probability is shown as subtle markers within cells. Daily high and low temperatures are labeled directly on their peak cells. The card scales to fit any dashboard column width.
 
+**Today is a partial day.** A forecast only covers the hours ahead, so today's row starts at the current hour and the cells behind it stay empty. Most integrations hand over only the hours still to come; a few publish the whole day from midnight, and the card drops those elapsed hours too, so today reads the same whichever one you use.
+
+Today's high and low labels disappear once they've passed, for the same reason. Whatever hours are left always have a warmest and a coldest one, but labeling those would promote an ordinary hour into a daily extreme — if the low was at dawn, the coldest hour remaining by mid-afternoon is somewhere near midnight, which isn't today's low in any useful sense. Later days are whole, so they always carry both labels.
+
 The [Spiral Layout](#spiral-layout) winds the same forecast into a spiral that gives near-term hours more space than distant ones, encoding forecast confidence as screen space. Optionally, [Sunrise & Sunset Markers](#sunrise--sunset-markers) bracket the daylight hours on either layout, computed automatically for your location.
 
 The card is fully theme-aware — it renders in light or dark to match your dashboard:
