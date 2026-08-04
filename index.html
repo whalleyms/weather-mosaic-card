@@ -223,21 +223,16 @@ function wmo(code) {
   return 'partlycloudy';
 }
 
-// Home Assistant's forecast subscription only ever hands the card the current
-// hour onward, so on a real dashboard today's elapsed hours are simply absent
-// and their cells render empty. Both sources here return the full day starting
-// at midnight, so drop what has already passed — otherwise the demo shows a
-// filled-in today row that the real card never draws.
-function dropElapsed(list) {
-  const cutoff = Date.now() - 3_600_000; // keep the current hour, drop earlier ones
-  return list.filter(f => new Date(f.datetime).getTime() > cutoff);
-}
+// Both sources below hand over the whole day starting at midnight. That's fine
+// to pass through as-is: since v1.5.0 the card drops today's elapsed hours
+// itself, so those cells come out blank here exactly as they do on a real
+// dashboard. Don't filter them again on this side — the card owns that rule.
 
 // --- Synthetic forecast (gallery + offline fallback) -----------------------
 function synthForecast({ baseTemp, swing, tzOffsetHours = 0, conditions, trend = 0, wave = 0 }) {
   const start = new Date();
   start.setUTCHours(start.getUTCHours() - ((start.getUTCHours() + tzOffsetHours + 24) % 24), 0, 0, 0);
-  return dropElapsed(Array.from({ length: 7 * 24 }, (_, h) => {
+  return Array.from({ length: 7 * 24 }, (_, h) => {
     const dt = new Date(start.getTime() + h * 3_600_000);
     const localH = ((dt.getUTCHours() + tzOffsetHours) + 24) % 24, dayIdx = Math.floor(h / 24);
     const pj = Math.sin(dayIdx * 1.9) * 1.5;
@@ -248,7 +243,7 @@ function synthForecast({ baseTemp, swing, tzOffsetHours = 0, conditions, trend =
     const temp = Math.round((baseTemp + dayShift + swing * sm * diurnal) * 10) / 10;
     const precip = cond.includes('snow') ? 75 : cond.includes('rain') ? 65 : cond === 'cloudy' ? 25 : 5;
     return { datetime: dt.toISOString(), temperature: temp, precipitation_probability: precip, condition: cond };
-  }));
+  });
 }
 
 async function geocode(name) {
@@ -270,12 +265,12 @@ async function forecast(lat, lon) {
 
 function toHaForecast(fc) {
   const os = offsetStr(fc.utc_offset_seconds), h = fc.hourly;
-  return dropElapsed(h.time.map((t, i) => ({
+  return h.time.map((t, i) => ({
     datetime: `${t}:00${os}`,
     temperature: h.temperature_2m[i],
     precipitation_probability: h.precipitation_probability[i] ?? 0,
     condition: wmo(h.weathercode[i]),
-  })));
+  }));
 }
 
 function mockHass(haForecast, cur, tz, lat, lon) {
