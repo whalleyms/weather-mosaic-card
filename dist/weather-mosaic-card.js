@@ -676,6 +676,26 @@ class WeatherMosaicCard extends HTMLElement {
     // 3-hourly then 6-hourly after ~36 h) so the grid isn't full of holes.
     if (this._config.interpolate) forecast = this._interpolateForecast(forecast);
 
+    // Most integrations hand over only the current hour onward, so today's
+    // elapsed hours simply arrive missing and their cells render empty. A few
+    // publish the whole day from midnight instead, which would fill those cells
+    // in and make the same card look different depending on the provider. Drop
+    // what has already elapsed so today reads identically everywhere. The
+    // comparison is in absolute time, so it holds whatever the card's
+    // `timezone` is; the in-progress hour is kept.
+    //
+    // This runs AFTER interpolation on purpose. A sparse feed's nearest known
+    // point is often the bucket already in progress (a 3-hourly source at 13:00
+    // still has 12:00 as its latest point); densifying first lets that point
+    // anchor the current hour, and only then do the genuinely elapsed hours go.
+    // Dropping first would strip the anchor and leave the holes issue #5 fixed.
+    const elapsedBefore = Date.now() - 3_600_000;
+    const upcoming = forecast.filter(f => new Date(f.datetime).getTime() > elapsedBefore);
+    // If nothing survives — a stale feed, or a clock well ahead of the data —
+    // keep what we were given rather than blanking the card, in the same spirit
+    // as ignoring empty pushes above.
+    if (upcoming.length) forecast = upcoming;
+
     const DAYS = Math.min(7, Math.max(1, parseInt(this._config.days) || 7));
     const dayMap = {}, dayLabels = [];
     const grid = [];
