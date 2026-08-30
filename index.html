@@ -46,11 +46,13 @@
     button:hover { border-color: var(--accent); }
     button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 
-    .opts { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 14px 0 6px;
-      font-size: 0.85rem; color: var(--muted); }
-    .opts label { display: inline-flex; align-items: center; gap: 6px; }
-    select { padding: 5px 8px; border: 1px solid var(--divider-color); border-radius: 6px;
-      background: var(--input-bg); color: var(--page-fg); font-size: 0.85rem; }
+    .opts { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 18px 0 6px;
+      font-size: 0.95rem; color: var(--muted); }
+    .opts label { display: inline-flex; align-items: center; gap: 8px; }
+    .opts input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+    select { padding: 8px 10px; border: 1px solid var(--divider-color); border-radius: 8px;
+      background: var(--input-bg); color: var(--page-fg); font-size: 0.95rem; }
+    select:focus { outline: none; border-color: var(--accent); }
 
     .matches { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 4px; }
     .match { text-align: left; background: var(--input-bg); }
@@ -120,10 +122,12 @@
     <label>Color scale
       <select id="scale">
         <option value="mosaic">Mosaic</option>
-        <option value="turbo">Turbo</option>
         <option value="blue_red">Blue → Red</option>
+        <option value="turbo">Turbo</option>
         <option value="viridis">Viridis</option>
         <option value="inferno">Inferno</option>
+        <option value="white_hot">White-Hot</option>
+        <option value="black_hot">Black-Hot</option>
       </select>
     </label>
     <label><input type="checkbox" id="sun" checked> Sunrise/sunset markers</label>
