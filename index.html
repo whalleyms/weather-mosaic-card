@@ -338,6 +338,7 @@ function placeLabel(r) {
 
 function pick(r) {
   $('q').value = placeLabel(r);
+  filledValue = $('q').value;
   cancelSuggest();
   clearMatches();
   loadCoords(r.latitude, r.longitude, r.name);
@@ -373,6 +374,11 @@ function showMatches(results, autoLoadSingle) {
 // Every geocode request carries a sequence number and an abort signal, so a
 // slow reply for "Lis" can never land on top of a newer one for "Lisbon".
 let suggestTimer = null, geoSeq = 0, geoAbort = null, activeMatch = -1;
+// Text this page put in the box (a pick, or the London we boot with). While it
+// is still untouched, entering the field selects it so a new city can be typed
+// straight over the top. Bound to focus rather than click, so a second click
+// still places a caret for anyone who wants to edit rather than replace.
+let filledValue = null, selectPending = false;
 
 function cancelSuggest() {
   clearTimeout(suggestTimer);
@@ -388,6 +394,7 @@ function clearMatches() {
 }
 
 function scheduleSuggest() {
+  filledValue = null;            // the user is editing; it is their text now
   clearTimeout(suggestTimer);
   const q = $('q').value.trim();
   if (q.length < 2) { clearMatches(); return; }
@@ -452,6 +459,16 @@ function useMyLocation() {
 }
 
 $('q').addEventListener('input', scheduleSuggest);
+$('q').addEventListener('focus', () => {
+  if (filledValue === null || $('q').value !== filledValue) return;
+  selectPending = true;
+  $('q').select();
+});
+// A click focuses, then mouseup drops a caret and throws the selection away.
+$('q').addEventListener('mouseup', e => {
+  if (selectPending) { e.preventDefault(); selectPending = false; }
+});
+$('q').addEventListener('blur', () => { selectPending = false; });
 $('q').addEventListener('keydown', e => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     if (moveActive(e.key === 'ArrowDown' ? 1 : -1)) e.preventDefault();
@@ -473,6 +490,7 @@ $('theme').addEventListener('change', e => applyTheme(e.target.value, true));
 $('theme').value = initTheme;
 applyTheme(initTheme, false);
 $('q').value = 'London';
+filledValue = 'London';
 loadCoords(51.5074, -0.1278, 'London');
 </script>
 </body>
