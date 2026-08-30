@@ -10,7 +10,7 @@
       --ha-card-background: #1e2635; --card-background-color: #1e2635;
       --primary-text-color: #e1e7ef; --secondary-text-color: #8a95a3;
       --ha-card-header-color: #f0f4f8; --divider-color: #2d3748; --error-color: #ef4444;
-      --accent: #6b9fff; --on-accent: #0b1220;
+      --accent: #6b9fff;
       --page-bg: #111827; --page-fg: #e1e7ef; --heading: #f9fafb;
       --muted: #9ca3af; --muted2: #6b7280;
       --input-bg: #0f172a; --panel-bg: #1f2937; --line: #1f2937;
@@ -20,7 +20,7 @@
       --ha-card-background: #ffffff; --card-background-color: #ffffff;
       --primary-text-color: #1c1c1c; --secondary-text-color: #6b7280;
       --ha-card-header-color: #111827; --divider-color: #e5e7eb;
-      --accent: #2563eb; --on-accent: #ffffff;
+      --accent: #2563eb;
       --page-bg: #f3f4f6; --page-fg: #1f2937; --heading: #0f172a;
       --muted: #6b7280; --muted2: #9ca3af;
       --input-bg: #ffffff; --panel-bg: #ffffff; --line: #e5e7eb;
@@ -36,15 +36,18 @@
     .badges a { text-decoration: none; }
     .badges img { height: 20px; display: block; }
 
+    .field-label { display: block; font-size: 0.95rem; color: var(--muted); margin: 0 0 6px; }
     .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
-    .search { display: flex; gap: 8px; flex: 1 1 320px; min-width: 260px; }
-    input[type=text] { flex: 1; padding: 10px 12px; border: 1px solid var(--divider-color); border-radius: 8px;
+    .search { position: relative; flex: 1 1 320px; min-width: 260px; }
+    input[type=text] { width: 100%; padding: 10px 38px; border: 1px solid var(--divider-color); border-radius: 8px;
       background: var(--input-bg); color: var(--page-fg); font-size: 1rem; }
     input[type=text]:focus { outline: none; border-color: var(--accent); }
+    .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      width: 17px; height: 17px; fill: none; stroke: var(--muted); stroke-width: 2;
+      stroke-linecap: round; pointer-events: none; }
     button { padding: 10px 14px; border: 1px solid var(--divider-color); border-radius: 8px; cursor: pointer;
       background: var(--panel-bg); color: var(--page-fg); font-size: 0.92rem; white-space: nowrap; }
     button:hover { border-color: var(--accent); }
-    button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 
     .opts { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 18px 0 6px;
       font-size: 0.95rem; color: var(--muted); }
@@ -62,9 +65,12 @@
     .status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--muted);
       min-height: 1.4em; margin: 12px 0; }
     .status.err { color: #dc2626; }
-    .spinner { width: 15px; height: 15px; border: 2px solid var(--divider-color); border-top-color: var(--accent);
+    .spinner { position: absolute; right: 12px; top: 50%; margin-top: -8px; width: 15px; height: 15px;
+      border: 2px solid var(--divider-color); border-top-color: var(--accent);
       border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
     ha-card { display: block; background: var(--ha-card-background); border-radius: 12px;
       box-shadow: 0 2px 12px var(--card-shadow); overflow: hidden; }
@@ -94,14 +100,21 @@
     <a href="https://github.com/whalleyms/weather-mosaic-card"><img src="https://img.shields.io/badge/HACS-Default-41BDF5?style=flat-square" alt="HACS"></a>
   </div>
 
+  <label class="field-label" for="q">Location</label>
   <div class="controls">
     <div class="search">
-      <input id="q" type="text" placeholder="City or place — e.g. Lisbon, 名古屋, Denver" autocomplete="off">
-      <button id="go" class="primary">Search</button>
+      <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+      </svg>
+      <input id="q" type="text" placeholder="Lisbon, 名古屋, Denver" autocomplete="off"
+             role="combobox" aria-expanded="false" aria-controls="matches"
+             aria-autocomplete="list" aria-haspopup="listbox">
+      <span class="spinner" id="spinner" aria-hidden="true"></span>
     </div>
     <button id="geo">📍 Use my location</button>
   </div>
-  <div class="matches" id="matches"></div>
+  <div class="matches" id="matches" role="listbox" aria-label="Location suggestions"></div>
+  <p class="sr-only" id="sr" role="status" aria-live="polite"></p>
 
   <div class="opts">
     <label>Theme
@@ -127,7 +140,7 @@
     <label><input type="checkbox" id="sun" checked> Sunrise/sunset markers</label>
   </div>
 
-  <div class="status" id="status"><span class="spinner" id="spinner"></span><span id="statustext"></span></div>
+  <div class="status" id="status" aria-live="polite"><span id="statustext"></span></div>
   <div id="cards"></div>
 
   <footer>
@@ -333,14 +346,25 @@ function showMatches(results, autoLoadSingle) {
   box.innerHTML = '';
   activeMatch = -1;
   if (autoLoadSingle && results.length === 1) { pick(results[0]); return; }
-  results.slice(0, 6).forEach(r => {
+  const shown = results.slice(0, 6);
+  shown.forEach((r, i) => {
     const b = document.createElement('button');
     b.className = 'match';
+    b.id = `match-${i}`;
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', 'false');
     const region = [r.admin1, r.country].filter(Boolean).join(', ');
     b.innerHTML = `${r.name} <small>${region}</small>`;
     b.onclick = () => pick(r);
     box.appendChild(b);
   });
+  $('q').setAttribute('aria-expanded', shown.length ? 'true' : 'false');
+  $('q').removeAttribute('aria-activedescendant');
+  // The highlight below is visual only; without this a screen reader gets no
+  // hint that anything appeared.
+  $('sr').textContent = shown.length
+    ? `${shown.length} location${shown.length === 1 ? '' : 's'} found. Use the arrow keys to review them.`
+    : 'No locations found.';
 }
 
 // --- Suggest-as-you-type --------------------------------------------------
@@ -348,7 +372,12 @@ function showMatches(results, autoLoadSingle) {
 // slow reply for "Lis" can never land on top of a newer one for "Lisbon".
 let suggestTimer = null, geoSeq = 0, geoAbort = null, activeMatch = -1;
 
-function clearMatches() { $('matches').innerHTML = ''; activeMatch = -1; }
+function clearMatches() {
+  $('matches').innerHTML = '';
+  activeMatch = -1;
+  $('q').setAttribute('aria-expanded', 'false');
+  $('q').removeAttribute('aria-activedescendant');
+}
 
 function scheduleSuggest() {
   clearTimeout(suggestTimer);
@@ -376,8 +405,12 @@ function moveActive(delta) {
   const items = [...$('matches').querySelectorAll('.match')];
   if (!items.length) return false;
   activeMatch = Math.max(0, Math.min(items.length - 1, activeMatch + delta));
-  items.forEach((el, i) => el.classList.toggle('active', i === activeMatch));
+  items.forEach((el, i) => {
+    el.classList.toggle('active', i === activeMatch);
+    el.setAttribute('aria-selected', i === activeMatch ? 'true' : 'false');
+  });
   items[activeMatch].scrollIntoView({ block: 'nearest' });
+  $('q').setAttribute('aria-activedescendant', items[activeMatch].id);
   return true;
 }
 
@@ -409,7 +442,6 @@ function useMyLocation() {
   );
 }
 
-$('go').onclick = doSearch;
 $('q').addEventListener('input', scheduleSuggest);
 $('q').addEventListener('keydown', e => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -423,6 +455,9 @@ $('q').addEventListener('keydown', e => {
   }
 });
 $('geo').onclick = useMyLocation;
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search') && !e.target.closest('#matches')) clearMatches();
+});
 ['units', 'tf', 'scale', 'sun'].forEach(id => $(id).addEventListener('change', render));
 $('theme').addEventListener('change', e => applyTheme(e.target.value, true));
 $('theme').value = initTheme;
