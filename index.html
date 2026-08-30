@@ -57,6 +57,7 @@
     .matches { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 4px; }
     .match { text-align: left; background: var(--input-bg); }
     .match small { color: var(--secondary-text-color); }
+    .match.active { border-color: var(--accent); background: var(--panel-bg); }
 
     .status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--muted);
       min-height: 1.4em; margin: 12px 0; }
@@ -228,9 +229,9 @@ function synthForecast({ baseTemp, swing, tzOffsetHours = 0, conditions, trend =
   });
 }
 
-async function geocode(name) {
+async function geocode(name, signal) {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=6&language=en&format=json`;
-  const r = await fetch(url);
+  const r = await fetch(url, { signal });
   if (!r.ok) throw new Error('geocoding failed');
   return (await r.json()).results || [];
 }
@@ -313,10 +314,11 @@ async function loadCoords(lat, lon, label) {
   }
 }
 
-function showMatches(results) {
+function showMatches(results, autoLoadSingle) {
   const box = $('matches');
   box.innerHTML = '';
-  if (results.length === 1) { const r = results[0]; loadCoords(r.latitude, r.longitude, r.name); return; }
+  activeMatch = -1;
+  if (autoLoadSingle && results.length === 1) { const r = results[0]; loadCoords(r.latitude, r.longitude, r.name); return; }
   results.slice(0, 6).forEach(r => {
     const b = document.createElement('button');
     b.className = 'match';
@@ -327,16 +329,58 @@ function showMatches(results) {
   });
 }
 
+// --- Suggest-as-you-type --------------------------------------------------
+// Every geocode request carries a sequence number and an abort signal, so a
+// slow reply for "Lis" can never land on top of a newer one for "Lisbon".
+let suggestTimer = null, geoSeq = 0, geoAbort = null, activeMatch = -1;
+
+function clearMatches() { $('matches').innerHTML = ''; activeMatch = -1; }
+
+function scheduleSuggest() {
+  clearTimeout(suggestTimer);
+  const q = $('q').value.trim();
+  if (q.length < 2) { clearMatches(); return; }
+  suggestTimer = setTimeout(() => runSuggest(q), 250);
+}
+
+async function runSuggest(q) {
+  const seq = ++geoSeq;
+  if (geoAbort) geoAbort.abort();
+  geoAbort = new AbortController();
+  try {
+    const results = await geocode(q, geoAbort.signal);
+    if (seq !== geoSeq) return;
+    showMatches(results, false);
+  } catch (e) {
+    // A cancelled keystroke is not a failure, and a half-typed name that
+    // matches nothing shouldn't shout — only an explicit search reports that.
+    if (e.name !== 'AbortError' && seq === geoSeq) clearMatches();
+  }
+}
+
+function moveActive(delta) {
+  const items = [...$('matches').querySelectorAll('.match')];
+  if (!items.length) return false;
+  activeMatch = Math.max(0, Math.min(items.length - 1, activeMatch + delta));
+  items.forEach((el, i) => el.classList.toggle('active', i === activeMatch));
+  items[activeMatch].scrollIntoView({ block: 'nearest' });
+  return true;
+}
+
 async function doSearch() {
   const q = $('q').value.trim();
   if (!q) return;
-  $('matches').innerHTML = '';
+  clearTimeout(suggestTimer);
+  const seq = ++geoSeq;          // outrank any suggestion still in flight
+  if (geoAbort) geoAbort.abort();
+  clearMatches();
   setStatus('Searching…', false, true);
   try {
     const results = await geocode(q);
+    if (seq !== geoSeq) return;
     if (!results.length) { setStatus(`No place found for “${q}”. Try another spelling.`, true, false); return; }
     setStatus('', false, false);
-    showMatches(results);
+    showMatches(results, true);
   } catch (e) {
     setStatus('Search failed. Please try again.', true, false);
   }
@@ -352,7 +396,18 @@ function useMyLocation() {
 }
 
 $('go').onclick = doSearch;
-$('q').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+$('q').addEventListener('input', scheduleSuggest);
+$('q').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (moveActive(e.key === 'ArrowDown' ? 1 : -1)) e.preventDefault();
+  } else if (e.key === 'Escape') {
+    clearMatches();
+  } else if (e.key === 'Enter') {
+    const items = [...$('matches').querySelectorAll('.match')];
+    if (activeMatch >= 0 && items[activeMatch]) items[activeMatch].click();
+    else doSearch();
+  }
+});
 $('geo').onclick = useMyLocation;
 ['units', 'tf', 'scale', 'sun'].forEach(id => $(id).addEventListener('change', render));
 $('theme').addEventListener('change', e => applyTheme(e.target.value, true));
