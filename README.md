@@ -18,7 +18,7 @@ A custom [Home Assistant](https://www.home-assistant.io/) dashboard card that di
 
 **See it with your own weather before installing anything.** Open the [**live demo**](https://whalleyms.github.io/weather-mosaic-card/), type in your city (anywhere in the world), and it renders your real next 7 days right in the browser — grid and spiral, light or dark.
 
-![Weather Mosaic Card — a week of hourly weather as a color-coded grid](assets/weather_mosaic_hero_grid.png)
+![Weather Mosaic Card — a week of hourly weather as a color-coded grid](https://raw.githubusercontent.com/whalleyms/weather-mosaic-card/main/assets/weather_mosaic_hero_grid.png)
 
 <sub>The color-mosaic **grid** — a week of hourly temperature at a glance, with daily highs/lows and precipitation markers.</sub>
 
@@ -341,6 +341,66 @@ precipitation_symbols:
 ```
 
 Leave `precipitation_symbols` unset to keep the default markers. `show_precip: false` still hides everything.
+
+---
+
+## Troubleshooting
+
+**"No forecast data for …"**
+
+The card shows this in place of the grid after waiting 15 seconds for forecast data that never arrived:
+
+> No forecast data for "weather.your_entity". Check the entity exists and provides hourly forecasts.
+
+The card asks Home Assistant for an **hourly** forecast, falling back to the entity's legacy `forecast` attribute. An integration that only publishes a *daily* forecast will never satisfy it — see [Weather Integrations](#weather-integrations) for sources that provide hourly data. If the entity is the right one, check in **Developer Tools → States** that it exists and isn't `unavailable`.
+
+The 15-second grace period is there because integrations are often still loading right after a Home Assistant restart, so a briefly blank card at startup is normal and is not this error.
+
+**A red "Configuration error" card instead of the mosaic**
+
+`entity` must be in the `weather.` domain. Pointing it at a `sensor.` — even a temperature sensor — raises:
+
+> weather-mosaic-card: "entity" must be a weather entity, e.g. weather.home
+
+A local temperature sensor belongs in [`temperature_entity`](#local-temperature-override), not `entity`.
+
+**The hours are shifted — the forecast doesn't line up with local time there**
+
+The most common surprise on a card for somewhere you don't live. The card picks its timezone in this order:
+
+1. the `timezone` option, if you set it
+2. the weather entity's own `timezone` attribute, if the integration publishes one
+3. **your browser's local time**
+
+Most integrations don't publish a `timezone` attribute, so a card for a remote location quietly falls through to step 3 and draws that city's forecast against your clock. Set it explicitly:
+
+```yaml
+timezone: Europe/Lisbon
+```
+
+**Today's row starts blank, and today has no high/low labels**
+
+Both are deliberate — see [How It Works](#how-it-works). A forecast only covers the hours ahead, so the elapsed part of today is empty; and labelling the warmest hour still to come as "today's high" would promote an ordinary hour into a daily extreme.
+
+**The grid is full of holes**
+
+Your source isn't hourly the whole way out. Turn on `interpolate` — see [Sparse Forecasts](#sparse-forecasts).
+
+**Every cell is the coldest color**
+
+The card normalizes the forecast to °F internally before mapping colors, reading the weather entity's `temperature_unit` attribute — and **assumes °F when that attribute is missing**. An entity reporting °C without declaring it therefore looks uniformly freezing. Check `temperature_unit` on the entity in **Developer Tools → States**. (The card's own `temperature_unit` option only changes the numbers on the labels; it has no effect on the colors.)
+
+**Sunrise/sunset markers don't appear, or the times are slightly off**
+
+With `sun_gaps` on and no location it can resolve, the card explains itself in the browser console:
+
+> weather-mosaic-card: "Mark Sunrise & Sunset" is enabled but no coordinates could be resolved …
+
+Set `latitude` / `longitude` explicitly. Times that are only a *little* off usually mean the card is using a large timezone's reference city — `America/New_York` resolves to New York City — so pin the coordinates for anywhere else in that zone. See [Sunrise & Sunset Markers](#sunrise--sunset-markers).
+
+**The card doesn't appear at all, or "Custom element doesn't exist: weather-mosaic-card"**
+
+The resource isn't loaded. After installing through HACS, restart Home Assistant and then hard-refresh the browser (Ctrl/Cmd-Shift-R) — a cached copy of the old dashboard bundle is the usual culprit. For a manual install, confirm the resource is registered under **Settings → Dashboards → Resources** with type **JavaScript Module**.
 
 ---
 
