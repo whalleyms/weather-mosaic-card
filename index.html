@@ -14,7 +14,7 @@
       --page-bg: #111827; --page-fg: #e1e7ef; --heading: #f9fafb;
       --muted: #9ca3af; --muted2: #6b7280;
       --input-bg: #0f172a; --panel-bg: #1f2937; --line: #1f2937;
-      --code-bg: #0b1220; --code-fg: #d5deea; --card-shadow: rgba(0,0,0,0.4);
+      --card-shadow: rgba(0,0,0,0.4);
     }
     :root[data-theme="light"] {
       --ha-card-background: #ffffff; --card-background-color: #ffffff;
@@ -24,7 +24,7 @@
       --page-bg: #f3f4f6; --page-fg: #1f2937; --heading: #0f172a;
       --muted: #6b7280; --muted2: #9ca3af;
       --input-bg: #ffffff; --panel-bg: #ffffff; --line: #e5e7eb;
-      --code-bg: #f8fafc; --code-fg: #334155; --card-shadow: rgba(0,0,0,0.12);
+      --card-shadow: rgba(0,0,0,0.12);
     }
     *, *::before, *::after { box-sizing: border-box; }
     body { margin: 0; background: var(--page-bg); color: var(--page-fg);
@@ -71,13 +71,6 @@
     #cards { margin-top: 12px; display: flex; flex-direction: column; gap: 20px; align-items: center; }
     #cards .grid-wrap { width: 100%; }
     #cards .spiral-wrap { width: 75%; }
-
-    .yaml { margin-top: 22px; border: 1px solid var(--divider-color); border-radius: 10px; overflow: hidden; }
-    .yaml-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px;
-      background: var(--input-bg); font-size: 0.8rem; color: var(--muted); }
-    .yaml pre { margin: 0; padding: 12px 14px; background: var(--code-bg); color: var(--code-fg); overflow-x: auto;
-      font-size: 0.82rem; line-height: 1.55; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .yaml button { padding: 5px 10px; font-size: 0.78rem; }
 
     footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line);
       color: var(--muted2); font-size: 0.78rem; line-height: 1.7; }
@@ -135,11 +128,6 @@
 
   <div class="status" id="status"><span class="spinner" id="spinner"></span><span id="statustext"></span></div>
   <div id="cards"></div>
-
-  <div class="yaml">
-    <div class="yaml-head"><span>Add it to your dashboard</span><button id="copy">Copy</button></div>
-    <pre id="yaml"></pre>
-  </div>
 
   <footer>
     <div class="links">
@@ -287,19 +275,7 @@ function makeCard(container, cls, cfg, hass) {
   card.hass = hass;
 }
 
-function updateYaml() {
-  const unit = $('units').value, tf = $('tf').value, scale = $('scale').value, sun = $('sun').checked;
-  let y = 'type: custom:weather-mosaic-card\n';
-  y += 'entity: weather.your_weather_entity\n';
-  if (scale !== 'mosaic') y += `color_scale: ${scale}\n`;
-  if (unit !== 'F') y += `temperature_unit: ${unit}\n`;
-  if (tf !== '12') y += `time_format: "${tf}"\n`;
-  if (sun) y += 'sun_gaps: true\n';
-  $('yaml').textContent = y.trimEnd();
-}
-
 function render() {
-  updateYaml();
   if (!state) return;
   const { place, forecast: haForecast, cur, tz, lat, lon } = state;
   const unit = $('units').value, tf = $('tf').value, scale = $('scale').value, sun = $('sun').checked;
@@ -380,15 +356,8 @@ $('q').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 $('geo').onclick = useMyLocation;
 ['units', 'tf', 'scale', 'sun'].forEach(id => $(id).addEventListener('change', render));
 $('theme').addEventListener('change', e => applyTheme(e.target.value, true));
-$('copy').onclick = () => {
-  navigator.clipboard.writeText($('yaml').textContent).then(() => {
-    $('copy').textContent = 'Copied!'; setTimeout(() => $('copy').textContent = 'Copy', 1500);
-  });
-};
-
 $('theme').value = initTheme;
 applyTheme(initTheme, false);
-updateYaml();
 $('q').value = 'London';
 loadCoords(51.5074, -0.1278, 'London');
 </script>
