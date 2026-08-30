@@ -106,7 +106,8 @@
       <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line>
       </svg>
-      <input id="q" type="text" placeholder="Lisbon, 名古屋, Denver" autocomplete="off"
+      <input id="q" type="text" placeholder="Lisbon, 名古屋, Denver"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
              role="combobox" aria-expanded="false" aria-controls="matches"
              aria-autocomplete="list" aria-haspopup="listbox">
       <span class="spinner" id="spinner" aria-hidden="true"></span>
@@ -337,6 +338,7 @@ function placeLabel(r) {
 
 function pick(r) {
   $('q').value = placeLabel(r);
+  cancelSuggest();
   clearMatches();
   loadCoords(r.latitude, r.longitude, r.name);
 }
@@ -371,6 +373,12 @@ function showMatches(results, autoLoadSingle) {
 // Every geocode request carries a sequence number and an abort signal, so a
 // slow reply for "Lis" can never land on top of a newer one for "Lisbon".
 let suggestTimer = null, geoSeq = 0, geoAbort = null, activeMatch = -1;
+
+function cancelSuggest() {
+  clearTimeout(suggestTimer);
+  geoSeq++;                      // orphan any reply still in flight
+  if (geoAbort) { geoAbort.abort(); geoAbort = null; }
+}
 
 function clearMatches() {
   $('matches').innerHTML = '';
@@ -417,9 +425,8 @@ function moveActive(delta) {
 async function doSearch() {
   const q = $('q').value.trim();
   if (!q) return;
-  clearTimeout(suggestTimer);
-  const seq = ++geoSeq;          // outrank any suggestion still in flight
-  if (geoAbort) geoAbort.abort();
+  cancelSuggest();
+  const seq = geoSeq;
   clearMatches();
   setStatus('Searching…', false, true);
   try {
@@ -435,6 +442,8 @@ async function doSearch() {
 
 function useMyLocation() {
   if (!navigator.geolocation) { setStatus('Geolocation is not available in this browser.', true, false); return; }
+  cancelSuggest();
+  clearMatches();
   setStatus('Getting your location…', false, true);
   navigator.geolocation.getCurrentPosition(
     p => loadCoords(p.coords.latitude, p.coords.longitude, 'Your location'),
@@ -447,6 +456,7 @@ $('q').addEventListener('keydown', e => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     if (moveActive(e.key === 'ArrowDown' ? 1 : -1)) e.preventDefault();
   } else if (e.key === 'Escape') {
+    cancelSuggest();
     clearMatches();
   } else if (e.key === 'Enter') {
     const items = [...$('matches').querySelectorAll('.match')];
@@ -456,7 +466,7 @@ $('q').addEventListener('keydown', e => {
 });
 $('geo').onclick = useMyLocation;
 document.addEventListener('click', e => {
-  if (!e.target.closest('.search') && !e.target.closest('#matches')) clearMatches();
+  if (!e.target.closest('.search') && !e.target.closest('#matches')) { cancelSuggest(); clearMatches(); }
 });
 ['units', 'tf', 'scale', 'sun'].forEach(id => $(id).addEventListener('change', render));
 $('theme').addEventListener('change', e => applyTheme(e.target.value, true));
