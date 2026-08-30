@@ -319,10 +319,20 @@ class WeatherMosaicCard extends HTMLElement {
   // Forecast subscription (HA 2023.9+) with legacy attribute fallback
   // -------------------------------------------------------------------------
   async _subscribeForecast() {
-    if (this._subscribing) return;
+    // Subscribing is a WebSocket round-trip, and the editor calls setConfig on
+    // the live element — so the entity can change while one is in flight.
+    // Returning outright would leave the card with no subscription at all while
+    // the in-flight call installed itself for the OLD entity, stranding the card
+    // on the previous entity's forecast. Record the intent instead and let the
+    // running call honour it when it lands.
+    if (this._subscribing) { this._resubscribeWanted = true; return; }
     this._subscribing = true;
+    this._resubscribeWanted = false;
     this._unsubscribeForecast();
-    this._subscribedEntity = this._config.entity;
+    // Capture the entity rather than re-reading config after the await, so the
+    // subscription and the check below always refer to the same one.
+    const entity = this._config.entity;
+    this._subscribedEntity = entity;
 
     try {
       const unsub = await this._hass.connection.subscribeMessage(
@@ -330,14 +340,18 @@ class WeatherMosaicCard extends HTMLElement {
         {
           type: 'weather/subscribe_forecast',
           forecast_type: 'hourly',
-          entity_id: this._config.entity,
+          entity_id: entity,
         }
       );
       // The card may have been detached (view switch, layout edit) while the
-      // subscribe was in flight. If so, cancel immediately instead of leaking a
-      // live subscription onto a dead element.
+      // subscribe was in flight, or the entity may have changed under it. Either
+      // way this subscription isn't the one we want: cancel it rather than leak
+      // a live subscription onto a dead element or the wrong entity.
       if (!this.isConnected) {
         unsub();
+      } else if (entity !== this._config.entity) {
+        unsub();
+        this._resubscribeWanted = true;
       } else {
         this._unsubForecast = unsub;
       }
@@ -349,6 +363,14 @@ class WeatherMosaicCard extends HTMLElement {
       this._fallbackToAttribute();
     } finally {
       this._subscribing = false;
+      // Honour an entity change that arrived mid-flight — either seen above, or
+      // from a setConfig that hit the guard at the top. The flag is cleared
+      // before retrying, so this settles once the entity stops moving instead of
+      // spinning.
+      if (this._resubscribeWanted && this._hass && this._config && this.isConnected) {
+        this._resubscribeWanted = false;
+        this._subscribeForecast();
+      }
     }
   }
 
@@ -488,7 +510,7 @@ class WeatherMosaicCard extends HTMLElement {
     const w = this.offsetWidth;
     if (!w || !this._config) return;
     this._narrow  = w < 320;
-    const scale   = parseFloat(this._config.font_scale) || 1.0;
+    const scale   = this._fontScale();
     const cellW   = Math.max(8,  Math.floor((w - 28) / 26));
     const cellH   = Math.max(12, Math.floor(cellW * 1.2 * scale));
     const cellFs  = Math.max(6,  Math.floor(cellW * 0.94 * scale));
@@ -584,6 +606,14 @@ class WeatherMosaicCard extends HTMLElement {
     return '';
   }
 
+  // Clamped the way its siblings sun_gap_width and spiral_gap are. The old
+  // `parseFloat(...) || 1.0` let a negative value through as negative font
+  // sizes, and silently turned an explicit 0 back into 1.
+  _fontScale() {
+    const s = parseFloat(this._config.font_scale);
+    return Number.isFinite(s) && s > 0 ? s : 1.0;
+  }
+
   _tempToColor(f) {
     const stops = this._customStops
       || COLOR_SCALES[this._config.color_scale]
@@ -628,6 +658,11 @@ class WeatherMosaicCard extends HTMLElement {
   // -------------------------------------------------------------------------
   _interpolateForecast(forecast) {
     const HOUR = 3600000;
+    // Past a couple of days this stops being interpolation and starts being
+    // invention — and one malformed datetime (a point a year out still parses as
+    // a finite time) would otherwise spin thousands of synthetic hours onto the
+    // frontend thread. The card never draws more than 7 days anyway.
+    const MAX_GAP = 48;
     const pts = forecast
       .map(f => ({ f, t: new Date(f.datetime).getTime() }))
       .filter(p => Number.isFinite(p.t))
@@ -641,7 +676,7 @@ class WeatherMosaicCard extends HTMLElement {
       const a = pts[i], b = pts[i + 1];
       if (!b) break;
       const gap = Math.round((b.t - a.t) / HOUR);
-      if (gap <= 1) continue;                          // already hourly (or denser)
+      if (gap <= 1 || gap > MAX_GAP) continue;         // already hourly, or too wide to fill
       const ta = num(a.f.temperature), tb = num(b.f.temperature);
       const pa = num(a.f.precipitation_probability), pb = num(b.f.precipitation_probability);
       for (let h = 1; h < gap; h++) {
@@ -999,7 +1034,7 @@ class WeatherMosaicCard extends HTMLElement {
     // absent falls back to the default.
     const gapMult  = parseFloat(this._config.spiral_gap);
     const WRAP_GAP = SIZE * 0.0025 * (Number.isFinite(gapMult) ? Math.max(0, gapMult) : 1);
-    const scale = parseFloat(this._config.font_scale) || 1.0;
+    const scale = this._fontScale();
 
     // `p` is day-position (0 = today's midnight). Its distance from now is
     // p - nowTurn; radius shrinks linearly from R_OUT at now over the remaining
