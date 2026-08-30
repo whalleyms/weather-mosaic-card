@@ -77,12 +77,6 @@
       font-size: 0.82rem; line-height: 1.55; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .yaml button { padding: 5px 10px; font-size: 0.78rem; }
 
-    .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--muted2); margin: 0 0 12px; }
-    hr.div { border: 0; border-top: 1px solid var(--line); margin: 48px 0 36px; }
-    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 18px; }
-    .cap { font-size: 0.72rem; color: var(--muted); margin-top: 6px; padding: 0 2px; }
-
     footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line);
       color: var(--muted2); font-size: 0.78rem; line-height: 1.7; }
     footer a { color: var(--muted2); }
@@ -143,10 +137,6 @@
     <pre id="yaml"></pre>
   </div>
 
-  <hr class="div">
-  <p class="section-label">Color scales</p>
-  <div class="gallery" id="gallery"></div>
-
   <footer>
     <div class="links">
       <a href="https://github.com/whalleyms/weather-mosaic-card">GitHub</a>
@@ -174,7 +164,7 @@ $('tf').value = isUS ? '12' : '24';
 function applyTheme(t, rerender) {
   document.documentElement.setAttribute('data-theme', t);
   try { localStorage.setItem('wmc-theme', t); } catch (e) {}
-  if (rerender) { render(); buildGallery(); }
+  if (rerender) render();
 }
 const savedTheme = (() => { try { return localStorage.getItem('wmc-theme'); } catch (e) { return null; } })();
 const initTheme = savedTheme
@@ -228,7 +218,7 @@ function wmo(code) {
 // itself, so those cells come out blank here exactly as they do on a real
 // dashboard. Don't filter them again on this side — the card owns that rule.
 
-// --- Synthetic forecast (gallery + offline fallback) -----------------------
+// --- Synthetic forecast (offline fallback) ---------------------------------
 function synthForecast({ baseTemp, swing, tzOffsetHours = 0, conditions, trend = 0, wave = 0 }) {
   const start = new Date();
   start.setUTCHours(start.getUTCHours() - ((start.getUTCHours() + tzOffsetHours + 24) % 24), 0, 0, 0);
@@ -283,12 +273,11 @@ function mockHass(haForecast, cur, tz, lat, lon) {
   };
 }
 
-function makeCard(container, cls, cfg, hass, caption) {
+function makeCard(container, cls, cfg, hass) {
   const wrap = document.createElement('div');
   wrap.className = cls;
   const card = document.createElement('weather-mosaic-card');
   wrap.appendChild(card);
-  if (caption) { const c = document.createElement('div'); c.className = 'cap'; c.textContent = caption; wrap.appendChild(c); }
   $(container).appendChild(wrap);
   card.setConfig(cfg);
   card.hass = hass;
@@ -382,29 +371,6 @@ function useMyLocation() {
   );
 }
 
-// --- Color-scale gallery (synthetic, always renders) -----------------------
-function buildGallery() {
-  $('gallery').innerHTML = '';
-  const scales = [
-    ['mosaic', 'mosaic — multi-color (default)'],
-    ['turbo', 'turbo — perceptually uniform'],
-    ['blue_red', 'blue_red — clean diverging'],
-    ['viridis', 'viridis — colorblind-safe'],
-    ['inferno', 'inferno — dark-theme friendly'],
-    ['white_hot', 'white_hot — thermal grayscale'],
-  ];
-  const fc = synthForecast({ baseTemp: 62, swing: 14, tzOffsetHours: -7, trend: 1.5, wave: 4,
-    conditions: ['sunny', 'sunny', 'partlycloudy', 'cloudy', 'rainy', 'partlycloudy', 'sunny'] });
-  const hass = () => ({
-    states: { [ENTITY]: { state: 'partlycloudy', attributes: { temperature_unit: '°F', temperature: 64 } } },
-    config: { latitude: 37.37, longitude: -122.04, time_zone: 'America/Los_Angeles' },
-    connection: { subscribeMessage(cb) { Promise.resolve().then(() => cb({ forecast: fc })); return Promise.resolve(() => {}); } },
-  });
-  scales.forEach(([s, label]) => {
-    makeCard('gallery', 'g', { entity: ENTITY, title: 'Sunnyvale, CA', color_scale: s, hours: 'above', time_format: '12' }, hass(), label);
-  });
-}
-
 $('go').onclick = doSearch;
 $('q').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 $('geo').onclick = useMyLocation;
@@ -419,7 +385,6 @@ $('copy').onclick = () => {
 $('theme').value = initTheme;
 applyTheme(initTheme, false);
 updateYaml();
-buildGallery();
 $('q').value = 'London';
 loadCoords(51.5074, -0.1278, 'London');
 </script>
