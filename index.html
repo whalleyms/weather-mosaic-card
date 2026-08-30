@@ -314,17 +314,31 @@ async function loadCoords(lat, lon, label) {
   }
 }
 
+// The full "Lisbon, Ohio, United States" form is what the user actually picked
+// out of the list, so it is what goes back into the box. Open-Meteo's geocoder
+// takes it fine (it keys off the first comma-separated token), so re-running
+// the search on it doesn't dead-end.
+function placeLabel(r) {
+  return [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+}
+
+function pick(r) {
+  $('q').value = placeLabel(r);
+  clearMatches();
+  loadCoords(r.latitude, r.longitude, r.name);
+}
+
 function showMatches(results, autoLoadSingle) {
   const box = $('matches');
   box.innerHTML = '';
   activeMatch = -1;
-  if (autoLoadSingle && results.length === 1) { const r = results[0]; loadCoords(r.latitude, r.longitude, r.name); return; }
+  if (autoLoadSingle && results.length === 1) { pick(results[0]); return; }
   results.slice(0, 6).forEach(r => {
     const b = document.createElement('button');
     b.className = 'match';
     const region = [r.admin1, r.country].filter(Boolean).join(', ');
     b.innerHTML = `${r.name} <small>${region}</small>`;
-    b.onclick = () => { box.innerHTML = ''; loadCoords(r.latitude, r.longitude, r.name); };
+    b.onclick = () => pick(r);
     box.appendChild(b);
   });
 }
