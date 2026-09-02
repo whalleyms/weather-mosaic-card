@@ -6,6 +6,7 @@
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/HACS-Default-41BDF5.svg" alt="HACS Default"></a>
   <a href="https://github.com/whalleyms/weather-mosaic-card/releases"><img src="https://img.shields.io/github/v/release/whalleyms/weather-mosaic-card" alt="Latest release"></a>
   <a href="https://github.com/whalleyms/weather-mosaic-card/releases"><img src="https://img.shields.io/github/downloads/whalleyms/weather-mosaic-card/total" alt="Downloads"></a>
+  <a href="https://github.com/whalleyms/weather-mosaic-card"><img src="https://img.shields.io/github/stars/whalleyms/weather-mosaic-card" alt="GitHub stars — click through to star the repo"></a>
   <a href="https://github.com/whalleyms/weather-mosaic-card/actions/workflows/validate.yml"><img src="https://github.com/whalleyms/weather-mosaic-card/actions/workflows/validate.yml/badge.svg" alt="Validate"></a>
   <a href="https://github.com/whalleyms/weather-mosaic-card/blob/main/LICENSE"><img src="https://img.shields.io/github/license/whalleyms/weather-mosaic-card" alt="License"></a>
 </p>
